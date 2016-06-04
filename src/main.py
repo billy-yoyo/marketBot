@@ -49,5 +49,5 @@ def run(restarter, restart_source=None):
     bot.register_command("help", help_handle, help_length_handle)
     help_page = botlib.HelpPage(":notebook_with_decorative_cover:Market help pages hello world")
     test_role = botlib.Role(all=True)
-    client.run("MTg3ODU3Nzg5NzQwMTIyMTEy.CjGLsw.Fo01YNiJ5Aj2vU-dFzYhS4TP9B8")
+    client.run("nope")
     restarter()
