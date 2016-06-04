@@ -47,7 +47,7 @@ def run(restarter, restart_source=None):
     bot.prefix = "m$"
     bot.lookup_enabled = True
     bot.register_command("help", help_handle, help_length_handle)
-    help_page = botlib.HelpPage(":notebook_with_decorative_cover:Market help pages hello world")
+    help_page = botlib.HelpPage(":notebook_with_decorative_cover:MarketBot help homepage:")
     test_role = botlib.Role(all=True)
     token = None
     f = open("credentials.txt")

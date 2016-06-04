@@ -131,16 +131,31 @@ class HelpPage:
         self.header = header
         # [ commandname: [descritption, helppage]
         self.commands = {}
+        self.commands["__ordering__"] = []
 
     # command is the command your adding, for example command subcommand
-    def register(self, command, params, description, root=[], help=None):
+    def register(self, command, params, description, root=[], help=None, silent=False, header=None, header_append=False):
+        if header is None:
+            header = self.header
+        else:
+            if type(header) is str:
+                header = [header]
+            if header_append:
+                header = self.header + header
         if type(params) is str:
-            params = [params]
+            if " " in params:
+                params = params.split(" ")
+            else:
+                params = [params]
         if type(description) is str:
             description = [description]
+        if type(root) is str:
+            if " " in root:
+                root = root.split(" ")
+            else:
+                root = [root]
         help = self
         if len(root) > 0:
-            help = self.commands
             for i in range(len(root)):
                 if root[i] in help.commands:
                     help = help.commands[root[i]][2]
@@ -148,7 +163,8 @@ class HelpPage:
                     help = None
                     break
         if help is not None:
-            help.commands[command] = [params, description, HelpPage(help.header)]
+            help.commands[command] = [params, description, HelpPage(header), silent]
+            help.commands["__ordering__"].append(command)
 
     def join(self, prefix, lines, suffix):
         result = ""
@@ -157,27 +173,32 @@ class HelpPage:
         return result
 
     def get(self, bot, command=[], command_head=None):
-        if command_head is None:
+        try:
+            if command_head is None:
+                if len(command) == 0:
+                    command_head = ""
+                elif not self.commands[command[0]][3]:
+                    command_head = " ".join(command) + " "
             if len(command) == 0:
-                command_head = ""
-            else:
-                command_head = " ".join(command) + " "
-        if len(command) == 0:
-            lines = self.join(" ", self.header, "\n")
-            for command in self.commands:
-                info = self.commands[command]
-                start = "        **>>** " + bot.prefix + command_head + command + " " +  " ".join(info[0]) + " - "
-                spacing = " " * len(start)
-                start += info[1][0] + "\n"
-                if len(info[1]) > 1:
-                    for i in range(1, len(info[1])):
-                        start += self.join(spacing, info[1][i], "\n")
-                lines += start
-            lines = lines.replace("%b%", bot.name).replace("%p%", bot.prefix)
-            return lines
-        elif command[0] in self.commands:
-            return self.commands[command][0].get(bot, command[1:], command_head)
-        return None
+                lines = self.join(" ", self.header, "\n")
+                for command in self.commands["__ordering__"]:
+                    info = self.commands[command]
+                    if not info[3]:
+                        start = "         >>** " + bot.prefix + command_head + command + "** " + " ".join(info[0]) + " - "
+                        spacing = " " * len(start)
+                        start += info[1][0] + "\n"
+                        if len(info[1]) > 1:
+                            for i in range(1, len(info[1])):
+                                start += self.join(spacing, info[1][i], "\n")
+                        lines += start
+                lines = lines.replace("%b%", bot.name).replace("%p%", bot.prefix)
+                return lines
+            elif command[0] in self.commands:
+                help_page = self.commands[command[0]][2]
+                return help_page.get(bot, command[1:], command_head)
+        except (IndexError, KeyError, ValueError):
+            pass
+        return self.join(" ", self.header, "\n") + "         >> No commands found!"
 
 
 def load_plugins(bot, help_page):

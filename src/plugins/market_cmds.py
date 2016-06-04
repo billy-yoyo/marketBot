@@ -352,6 +352,8 @@ def market_handle(bot, msg, cmd):
             formatting = bot.prefix + "lookup user|id|name|nick <search>"
             if is_me(msg):
                 find_all = False
+                if cmd[0] == "lookup_all":
+                    find_all = True
                 find_str = cmd[2]
                 if cmd[-1] == "all":
                     find_all = True
@@ -614,22 +616,24 @@ def market_handle(bot, msg, cmd):
                 raise IndexError
         elif cmd[0] == "info":
             lines = [
-                "MarketBot is a cookieclicker-esque bot where you produce items in factories",
+                "**MarketBot** is a CookieClicker-esque bot where you produce items in factories",
                 "Upgrading these factories with the items you produce or buy from the discord-wide market",
-                "Read up fully on how the game works at our github page: https://github.com/billy-yoyo/marketBot/"
-                "   **>> " + bot.prefix + "help** for help with commands, or ",
-                "   **>>** " + bot.prefix + "join [invite link]** to invite the bot to your server, if no invite given you'll be DM'd one",
-                "Some more info: ```",
-                " I'm in " + str(len(bot.client.servers)) + " with " + str(len(bot.market.get_registered_users())) + " registered players",
-                " I was created by billyoyo, see " + bot.prefix + "ticket to send me a message",
-                " ```"
-                " Join the MarketBot server: https://discord.gg/013GE1ZeT5ntIaWCW",
-
+                "",
+                "To see a list of my commands, use **" + bot.prefix + "help**",
+                "To get the bot in your server, use **" + bot.prefix + "join**",
+                "To get an invite to the official MarketBot server, use **" + bot.prefix + "server**",
+                "To register to play, use **" + bot.prefix + "register**",
+                "",
+                "Read up fully on how the game works at our github page: https://github.com/billy-yoyo/marketBot/ ",
             ]
-            yield from bot.client.send_message(msg.channel, "\n".join(lines))
+            yield from bot.client.send_message(msg.author, "\n".join(lines))
         elif cmd[0] == "join":
             yield from bot.client.send_message(msg.channel, "Coming soon (tm)")
         elif cmd[0] == "ticket":
+            yield from bot.client.send_message(msg.channel, "Coming soon (tm)")
+        elif cmd[0] == "server":
+            yield from bot.client.send_message(msg.author, "https://discord.gg/013GE1ZeT5ntIaWCW")
+        elif cmd[0] == "register":
             yield from bot.client.send_message(msg.channel, "Coming soon (tm)")
         else:
             raise IndexError
@@ -642,14 +646,46 @@ def market_handle(bot, msg, cmd):
 
 
 def market_handle_l(cmd):
+    if cmd[0] == "market":
+        return 2
+    elif cmd[0] == "trade":
+        return 2
     return 1
 
 def setup(bot, help_page, filename):
     bot.market = market.Market()
-    help_page.register("market", "[stuff]", "does market stuff")
-    help_page.register("balance", "", "checks your balance")
-    help_page.register("inv", "[item]", "tells you have much of an item you have, if no item given tells you what items you have")
-    help_page.register("ping", "", "tells you the bots ping to your server.")
+
+    help_page.register("core", "", "", silent=True, header=":notebook_with_decorative_cover:Core commands:")
+    help_page.register("misc", "", "", silent=True, header=":notebook_with_decorative_cover:Miscellaneous commands:")
+    help_page.register("admin", "", "", silent=True, header=":notebook_with_decorative_cover:Admin commands:")
+    help_page.register("market", "", "", silent=True, header=":notebook_with_decorative_cover:Market commands:")
+
+    help_page.register("market", "", "does market stuff, see " + bot.prefix + "help market for commands", root="core", header=":notebook_with_decorative_cover:Market commands:")
+    help_page.register("market price", ["buying|selling", "[item]|[amount]", "[item]"], "information on the current market prices of items", root="market")
+
+    help_page.register("trade", "", "does trading stuff, see " + bot.prefix + "help trade for commands", root="core", header=":notebook_with_decorative_cover:Trading commands:")
+
+    help_page.register("balance", "", "checks your balance", root="core")
+    help_page.register("balance history", "[page]", "shows your transaction history", root="core")
+    help_page.register("inv", "[item]", "tells you have much of an item you have, if no item given tells you what items you have", root="core")
+
+    help_page.register("register", "", "registers to play the game and sets you up with your first factory", root="misc")
+    help_page.register("join [invite_link]", "", "Joins a server, or creates a bot invite link if no invite link is given", root="misc")
+    help_page.register("ticket", "", "commands for sending a help ticket to the admins", root="misc")
+    help_page.register("server", "", "gives you an invite link to the offical MarketBot server", root="misc")
+    help_page.register("ping", "", "tells you the bots ping to your server", root="misc")
+
+    help_page.register("backup", "", "commands for backup bot data", root="help admin")
+    help_page.register("save", "", "manually save the bot data", root="admin")
+    help_page.register("admin", "[code]", "manually perform some code", root="admin")
+    help_page.register("lookup", "", "commands for looking up users and servers, lookup_all for returning all results completley", root="admin")
+    help_page.register("ticket", "read|respond", "commands for reading and responding to tickets", root="admin")
+
+    help_page.register("help core", "", "see list of core commands")
+    help_page.register("help misc", "", "see list of miscellaneous commands")
+    help_page.register("help admin", "", "see list of admin commands")
+    help_page.register("info", "", "displays information about the bot")
+
     bot.register_command("market", market_handle, market_handle_l)
     bot.register_command("admin", market_handle, market_handle_l)
     bot.register_command("balance", market_handle, market_handle_l)
@@ -665,3 +701,5 @@ def setup(bot, help_page, filename):
     bot.register_command("info", market_handle, market_handle_l)
     bot.register_command("join", market_handle, market_handle_l)
     bot.register_command("ticket", market_handle, market_handle_l)
+    bot.register_command("register", market_handle, market_handle_l)
+    bot.register_command("server", market_handle, market_handle_l)
