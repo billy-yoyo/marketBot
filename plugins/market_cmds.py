@@ -616,7 +616,7 @@ def market_handle(bot, msg, cmd):
             lines = [
                 "MarketBot is a cookieclicker-esque bot where you produce items in factories",
                 "Upgrading these factories with the items you produce or buy from the discord-wide market",
-                "Read up fully on how the game works at our github page: " +
+                "Read up fully on how the game works at our github page: https://github.com/billy-yoyo/marketBot/"
                 "   **>> " + bot.prefix + "help** for help with commands, or ",
                 "   **>>** " + bot.prefix + "join [invite link]** to invite the bot to your server, if no invite given you'll be DM'd one",
                 "Some more info: ```",
