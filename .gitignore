@@ -48,7 +48,7 @@ Temporary Items
 
 # Data files
 data
-credentials
+credentials.txt
 *.json
 __pycache__
 .idea
