@@ -40,7 +40,9 @@ def run(restarter, restart_source=None):
         else:
             yield from bot.run_command(message, test_role)
 
+    print("Creating bot..")
     bot = botlib.Bot(client)
+    print("Initialising bot...")
     bot.restarter = restarter
     bot.ping_message = "Ping!"
     bot.name = "MarketBot"
@@ -49,11 +51,13 @@ def run(restarter, restart_source=None):
     bot.register_command("help", help_handle, help_length_handle)
     help_page = botlib.HelpPage(":notebook_with_decorative_cover:MarketBot help homepage:")
     test_role = botlib.Role(all=True)
+    print("Finding bot token...")
     token = None
     f = open("credentials.txt")
     for line in f:
         token = line
         break
     f.close()
+    print("Logging in...")
     client.run(token)
     restarter()

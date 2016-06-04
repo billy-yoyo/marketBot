@@ -1,9 +1,12 @@
-import market, time, math, traceback, asyncio
+import market, time, math, traceback, asyncio, shutil
 from os import listdir
 from os.path import isfile, join
 
+admin_list = []
+
 def is_me(msg):
-    return msg.author.id == "141964149356888064"
+    return msg.author.id in admin_list
+
 
 def join_arr(prefix, arr, suffix, start=0, end=-1):
     if end < 0:
@@ -14,6 +17,7 @@ def join_arr(prefix, arr, suffix, start=0, end=-1):
     for i in range(start, end):
         result += prefix + arr[i] + suffix
     return result
+
 
 def market_handle(bot, msg, cmd):
     formatting = bot.prefix + "help to see help!"
@@ -329,13 +333,25 @@ def market_handle(bot, msg, cmd):
                     if cmd[1] == "load":
                         formatting = bot.prefix + "backup load [backup_name] - load the backup, see " + bot.prefix + "backup list for a list of backups"
                         backup_name = " ".join(cmd[2:])
-                        bot.market.load_backup(backup_name)
-                        yield from bot.client.send_message(msg.channel, ":floppy_disk: Loaded back up, check console for information.")
+                        if bot.market.load_backup(backup_name):
+                            yield from bot.client.send_message(msg.channel, ":floppy_disk: Loaded back up, check console for information.")
+                        else:
+                            yield from bot.client.send_message(msg.channel, ":floppy_disk: Couldn't find a backup named " + backup_name)
                     elif cmd[1] == "save":
                         formatting = bot.prefix + "backup save [backup_name] - save the current data to a backup with that name"
                         backup_name = " ".join(cmd[2:])
                         bot.market.save_backup(backup_name)
                         yield from bot.client.send_message(msg.channel, ":floppy_disk: Backed up, check console for information.")
+                    elif cmd[1] == "delete":
+                        formatting = bot.prefix + "backup delete [backup_name] - delete that backup"
+                        backup_name = " ".join(cmd[2:])
+                        if backup_name.startswith("."):
+                            yield from bot.client.send_message(msg.channel, ":floppy_disk: Invincible backup, cannot delete!")
+                        else:
+                            if bot.market.delete_backup(backup_name):
+                                yield from bot.client.send_message(msg.channel, ":floppy_disk: Deleted backup " + backup_name)
+                            else:
+                                yield from bot.client.send_message(msg.channel, ":floppy_disk: Couldn't find backup named " + backup_name)
                     elif cmd[1] == "list":
                         formatting = bot.prefix + "backup list - list all the known backups"
                         onlyfiles = [f for f in listdir("data/") if not isfile(join("data/", f))]
@@ -652,8 +668,16 @@ def market_handle_l(cmd):
         return 2
     return 1
 
+
 def setup(bot, help_page, filename):
+    f = open("adminlist.txt")
+    for line in f:
+        admin_list.append(line)
+    f.close()
+    print("Loaded admins: " + str(admin_list))
+
     bot.market = market.Market()
+    print("Created market")
 
     help_page.register("core", "", "", silent=True, header=":notebook_with_decorative_cover:Core commands:")
     help_page.register("misc", "", "", silent=True, header=":notebook_with_decorative_cover:Miscellaneous commands:")
@@ -686,6 +710,8 @@ def setup(bot, help_page, filename):
     help_page.register("help admin", "", "see list of admin commands")
     help_page.register("info", "", "displays information about the bot")
 
+    print("Registered help pages")
+
     bot.register_command("market", market_handle, market_handle_l)
     bot.register_command("admin", market_handle, market_handle_l)
     bot.register_command("balance", market_handle, market_handle_l)
@@ -703,3 +729,5 @@ def setup(bot, help_page, filename):
     bot.register_command("ticket", market_handle, market_handle_l)
     bot.register_command("register", market_handle, market_handle_l)
     bot.register_command("server", market_handle, market_handle_l)
+
+    print("Registered commands")

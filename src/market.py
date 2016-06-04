@@ -1,4 +1,4 @@
-import threading, math, copy, json, os
+import threading, math, copy, json, os, shutil
 
 def is_number(s):
     try:
@@ -152,19 +152,30 @@ class Market:
             if dir_suffix == "":
                 print("[LOAD] Loaded!")
             else:
-                print("[BACKUP] Loaded backup " + dir_suffix + ", Save ID: " + self.inventory["save_id"])
+                print("[BACKUP] Loaded backup " + dir_suffix + ", Save ID: " + str(self.inventory["save_id"]))
         else:
             print("[BACKUP] Invalid backup name " + dir_suffix)
 
     def save_backup(self, backup_name):
         index = 0
+        og_backup_name = backup_name
         while os.path.exists("data/" + backup_name + "/"):
             index += 1
-            backup_name += str(index)
+            backup_name = og_backup_name + str(index)
         self.save(backup_name + "/")
 
     def load_backup(self, backup_name):
-        self.load(backup_name + "/")
+        if os.path.exists("data/" + backup_name + "/"):
+            self.load(backup_name + "/")
+            return True
+        return False
+
+    def delete_backup(self, backup_name):
+        if os.path.exists("data/" + backup_name + "/"):
+            shutil.rmtree("data/" + backup_name + "/")
+            return True
+        return False
+
 
     def save_loop(self):
         if self.running:
