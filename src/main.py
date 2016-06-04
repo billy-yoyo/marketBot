@@ -49,5 +49,11 @@ def run(restarter, restart_source=None):
     bot.register_command("help", help_handle, help_length_handle)
     help_page = botlib.HelpPage(":notebook_with_decorative_cover:Market help pages hello world")
     test_role = botlib.Role(all=True)
-    client.run("nope")
+    token = None
+    f = open("credentials.txt")
+    for line in f:
+        token = line
+        break
+    f.close()
+    client.run(token)
     restarter()
