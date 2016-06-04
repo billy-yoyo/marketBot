@@ -48,7 +48,7 @@ Temporary Items
 
 # Data files
 data
-src/*.txt
+*.txt
 *.json
 __pycache__
 .idea
