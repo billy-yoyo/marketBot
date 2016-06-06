@@ -24,6 +24,10 @@ class Bot:
         self.binds = {}
         self.pings = []
         self.restarter = default_restart
+        self.admin_list = []
+
+    def is_me(self, msg):
+        return msg.author.id in self.admin_list
 
     def call_restart(self):
         self.restarter()

@@ -1,4 +1,4 @@
-import threading, math, copy, json, os, shutil, datetime, time, traceback
+import threading, math, copy, json, os, shutil, datetime, time, traceback, random
 
 def is_number(s):
     try:
@@ -140,7 +140,7 @@ class Factory:
             else:
                 self.market.add_inventory(self.user, obj[0], -obj[1], note)
         for code_block in upgrade["__RESULT__"]:
-            print(code_block)
+            #print(code_block)
             eval(code_block)
         return None
 
@@ -152,8 +152,15 @@ class Factory:
                 result = self._use_upgrade(Factory.FACTORY_COSTS[name][self.upgrade_levels[name]+1], mats)
                 if result is None:
                     self.upgrade_levels[name] += 1
+                self.market.update_achievs(self.user)
                 return result
         return "ERROR"
+
+    def set_level(self, upgrade_type, level):
+        if upgrade_type in self.upgrade_levels:
+            if 1 <= level <= len(Factory.FACTORY_COSTS[upgrade_type]):
+                for code_block in Factory.FACTORY_COSTS[upgrade_type][level]:
+                    eval(code_block)
 
     def start_auto_produce(self, delay, time_scaling=-1, eff=-1):
         if time_scaling < 0:
@@ -161,7 +168,7 @@ class Factory:
         if eff != -1:
             self.auto_efficieny = eff
         self.production_start = time.time()
-        self.auto_produce = self.get_amount(delay, time_scaling)
+        self.auto_produce = math.ceil(self.auto_efficieny * self.get_amount(delay, time_scaling))
         if self not in self.market.auto_factories:
             self.market.auto_factories.append(self)
         self.producing = 2
@@ -191,9 +198,7 @@ class Factory:
             amount = self.production_amount
             self.producing = 0
             self.production_start = time.time()
-        elif self.producing == 2:
-            amount = math.ceil(amount * self.auto_efficieny)
-        self.market.add_inventory(self.user, self.item, amount)
+        self.market.add_inventory(self.user, self.item, amount, None)
 
     def produce(self, amount):
         if not self.producing:
@@ -205,7 +210,87 @@ class Factory:
             return delay
         return -1
 
+class Chest:
+    # types: $$$ for money, {item|?item_type} for factory, ?item_type for a random item from the item_type, item for an item
+    # factories: "sellable": True|False, "levels": [ { "type": upgrade_type, "lower": lower level, "upper", upper level }, .. ]
+    LOOT_GRADE_NAMES = [
+        "daily reward"
+    ]
+    LOOT = [
+        [
+            {"name": "daily reward", "lower": 10, "upper": 10},
+            {"type": "$$$", "lower": 50, "upper": 110},
+            {"type": "?base", "lower": 20, "upper": 60}
+        ]
+    ]
+    def __init__(self, market, user, grade):
+        self.market = market
+        self.user = user
+        self.grade = grade
+
+    def open(self):
+        loot = Chest.LOOT[self.grade]
+        amount = random.randint(loot[0]["lower"], loot[0]["upper"])
+        rewards = []
+        for i in range(amount):
+            reward = loot[random.randint(1, len(loot)-1)]
+            if reward["type"] == "$$$": # money
+                amt = random.randint(reward["lower"], reward["upper"])
+                self.market.give_money(self.user, amt, "chest reward")
+                done = False
+                for i in range(len(rewards)):
+                    if rewards[i].startswith("$"):
+                        rewards[i] = "$" + str( int(rewards[i][1:]) + amt )
+                        done = True
+                        break
+                if not done:
+                    rewards.append("$" + str(amt))
+            elif reward["type"].startswith("{") and reward["type"].endswith("}"): # factory
+                item = reward["type"][1:-1]
+                if item.startswith("?"):
+                    item_list = self.market.get_items_from(item[1:])
+                    item = random.randint(len(item_list)-1)
+                sellable = True
+                if "sellable" in reward:
+                    sellable = reward["sellable"]
+                factory = Factory(self.market, self.user, item, self.market._next_id(), sellable)
+                if "levels" in reward:
+                    for obj in reward["levels"]:
+                        factory.set_level(obj["type"], random.randint(obj["lower"], obj["upper"]))
+                if not self.user in self.market.factories:
+                    self.market.factories[self.user] = {}
+                self.market.factories[self.user][factory.id] = factory
+                rewards.append("an " + item + " factory")
+            else : # item type
+                item = reward["type"]
+                if item.startswith("?"):
+                    item_list = self.market.get_items_from(item[1:])
+                    item = item_list[random.randint(0, len(item_list)-1)]
+                amt = random.randint(reward["lower"], reward["upper"])
+                self.market.add_inventory(self.user, item, amt, "chest reward")
+                done = False
+                for i in range(len(rewards)):
+                    if rewards[i].endswith(" " + item):
+                        rewards[i] = str( int(rewards[i][:-len(" " + item)]) + amt ) + " " + item
+                        done = True
+                        break
+                if not done:
+                    rewards.append(str(amt) + " " + item)
+        return rewards
 class Market:
+    ACHIEVEMENTS = {
+        "Base": {
+            "desc": ":package: Achievements to do with collecting resources:",
+            "name": "base",
+            "achievs": [
+                {
+                    "condition": lambda market, user: market.get_money(user) > 100,
+                    "desc": "Have a balance of over $100"
+                }
+            ]
+        }
+    }
+
     BUY_NO_SUCH_ITEM = 0
     BUY_NOT_ENOUGH_ITEM = 1
     BUY_NOT_ENOUGH_MONEY = 2
@@ -235,6 +320,9 @@ class Market:
         self.money_history = {}
         self.last_offer_lists = {}
         self.last_market_lists = {}
+        self.achievs = {}
+        self.achievs["__mute__"] = []
+        self.achiev_stack = []
         self.trading = {}
         self.item_types = {}
         self.refresh_cd = 0
@@ -242,9 +330,46 @@ class Market:
         self.inventory["save_delay"] = 60 # save every minute
         self.inventory["save_id"] = 0
         self.factories["produce_delay"] = 30
+
+        self.chests = {}
+        self.tags = {}
+        self.tags["__tagban__"] = {}
         self.load()
         self.save_loop()
         self.produce_loop()
+
+    def give_chest(self, user_id, grade):
+        if not is_number(grade):
+            if grade in Chest.LOOT_GRADE_NAMES:
+                grade = Chest.LOOT_GRADE_NAMES.index(grade)
+            else:
+                return False
+        grade = str(grade)
+        if not user_id in self.chests:
+            self.chests[user_id] = {}
+        if grade in self.chests[user_id]:
+            self.chests[user_id][grade] += 1
+        else:
+            self.chests[user_id][grade] = 1
+
+
+    def has_achiev(self, user_id, name, index=-1):
+        if user_id in self.achievs:
+            if index >= 0:
+                name = name + "_" + str(index)
+            return name in self.achievs[user_id]
+        return False
+
+    def update_achievs(self, user_id):
+        if not user_id in self.achievs:
+            self.achievs[user_id] = []
+        for title in Market.ACHIEVEMENTS:
+            info = Market.ACHIEVEMENTS[title]
+            for i in range(len(info["achievs"])):
+                ach_name = info["name"] + "_" + str(i)
+                if ach_name not in self.achievs[user_id] and info["achievs"][i]["condition"](self, user_id):
+                    self.achievs[user_id].append(ach_name)
+                    self.achiev_stack.append([user_id, ach_name])
 
     def wipe(self, user_id):
         for item in self.market:
@@ -316,7 +441,7 @@ class Market:
             os.makedirs("data/")
         if not os.path.exists("data/" + dir_suffix):
             os.makedirs("data/" + dir_suffix)
-        to_save = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types"]
+        to_save = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags"]
         for fname in to_save:
             try:
                 data = getattr(self, fname)
@@ -353,7 +478,7 @@ class Market:
         if not os.path.exists("data/"):
             os.makedirs("data/")
         if os.path.exists("data/" + dir_suffix):
-            to_load = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types"]
+            to_load = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags"]
             for fname in to_load:
                 try:
                     file_name = "data/" + dir_suffix + fname + ".json"
@@ -483,6 +608,7 @@ class Market:
             self.factories[user] = {}
         factory_id = self._next_id()
         factory = Factory(self, user, item, factory_id, sellable)
+        self.update_achievs(user)
         self.factories[user][factory_id] = factory
         return factory
 
@@ -526,6 +652,7 @@ class Market:
         if user not in self.inventory:
             self.inventory[user] = {}
         self.inventory[user][item] = amount
+        self.update_achievs(user)
         if note is not None:
             if note != "":
                 note = "{" + note + "}"
@@ -666,6 +793,7 @@ class Market:
 
     def set_money(self, user, money, note=""):
         self.money[user] = money
+        self.update_achievs(user)
         if note is not None:
             if note != "":
                 note = "{" + note + "}"

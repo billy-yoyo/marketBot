@@ -1,11 +1,8 @@
-import market, time, math, traceback, datetime, asyncio
+import market, time, math, traceback, datetime, asyncio, discord
 from os import listdir
 from os.path import isfile, join
 
-admin_list = []
 
-def is_me(msg):
-    return msg.author.id in admin_list
 
 
 def join_arr(prefix, arr, suffix, start=0, end=-1):
@@ -128,7 +125,7 @@ def market_handle(bot, msg, cmd):
                 elif cmd[1] != "my":
                     user_id = cmd[1]
                     changed = True
-                if (changed and is_me(msg)) or not changed:
+                if (changed and bot.is_me(msg)) or not changed:
                     if changed:
                         if len(msg.mentions) > 0:
                             user_msg_name = msg.mentions[0].name + "'s"
@@ -246,7 +243,7 @@ def market_handle(bot, msg, cmd):
             else:
                 raise IndexError
         elif cmd[0] == "restart":
-            if is_me(msg):
+            if bot.is_me(msg):
                 yield from bot.client.send_message(msg.channel, "Disfunctional. Do not use.")
                 #yield from bot.client.send_message(msg.channel, ">>> Restarting <<<")
                 #print("Performing full restart!")
@@ -259,11 +256,11 @@ def market_handle(bot, msg, cmd):
             else:
                 yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
         elif cmd[0] == "save":
-            yield from bot.client.send_message(msg.channel, ">>> Restarting <<<")
+            yield from bot.client.send_message(msg.channel, ">>> Saving <<<")
             bot.market.save()
         elif cmd[0] == "admin":
             formatting = bot.prefix + "admin <command> - run an admin command"
-            if is_me(msg):
+            if bot.is_me(msg):
                 command = " ".join(cmd[1:])
                 for mention in msg.mentions:
                     command = command.replace("<@" + mention.id + ">", '"' + mention.id + '"')
@@ -278,13 +275,13 @@ def market_handle(bot, msg, cmd):
                 user_msg_name = "Your"
                 ok = True
                 if len(msg.mentions) > 0:
-                    if is_me(msg):
+                    if bot.is_me(msg):
                         user_id = msg.mentions[0].id
                         user_msg_name = msg.mentions[0].name + "'s"
                     else:
                         ok = False
                 elif len(cmd) > 3:
-                    if is_me(msg):
+                    if bot.is_me(msg):
                         user_id = cmd[3]
                         if bot.lookup_enabled:
                             for server in bot.client.servers:
@@ -320,13 +317,13 @@ def market_handle(bot, msg, cmd):
                 user_msg_name = "Your"
                 ok = True
                 if len(msg.mentions) > 0:
-                    if is_me(msg):
+                    if bot.is_me(msg):
                         user_id = msg.mentions[0].id
                         user_msg_name = msg.mentions[0].name + "'s"
                     else:
                         ok = False
                 elif len(cmd) > 1:
-                    if is_me(msg):
+                    if bot.is_me(msg):
                         user_id = cmd[1]
                         if bot.lookup_enabled:
                             for server in bot.client.servers:
@@ -360,7 +357,7 @@ def market_handle(bot, msg, cmd):
                 if user_msg_name == "Your":
                     user_msg_name = user_id + "'s"
                 changed = True
-            if (changed and is_me(msg)) or not changed:
+            if (changed and bot.is_me(msg)) or not changed:
                 formatting = bot.prefix + "inv [item] - shows the amount of that item you have, or what items you have if no item given"
                 if len(cmd) == 1 or cmd[1].startswith("<") or market.is_number(cmd[1]):
                     formatting = bot.prefix + "inv - shows how much of that item you have"
@@ -373,7 +370,7 @@ def market_handle(bot, msg, cmd):
                 yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
         elif cmd[0] == "backup":
             formatting = "backup load|save|list|delete|info [backup_name] - commands for backing up the market data"
-            if is_me(msg):
+            if bot.is_me(msg):
                 if len(cmd) >= 3 or cmd[1] == "list":
                     if cmd[1] == "load":
                         formatting = bot.prefix + "backup load [backup_name] - load the backup, see " + bot.prefix + "backup list for a list of backups"
@@ -423,7 +420,7 @@ def market_handle(bot, msg, cmd):
             yield from bot.client.send_message(msg.channel, bot.ping_message)
         elif cmd[0] == "lookup" or cmd[0] == "lookup_all":
             formatting = bot.prefix + "lookup user|id|name|nick <search>"
-            if is_me(msg):
+            if bot.is_me(msg):
                 find_all = False
                 if cmd[0] == "lookup_all":
                     find_all = True
@@ -575,7 +572,7 @@ def market_handle(bot, msg, cmd):
                 elif cmd[1] != "my":
                     user_id = cmd[1]
                     changed = True
-                if (changed and is_me(msg)) or not changed:
+                if (changed and bot.is_me(msg)) or not changed:
                     if changed:
                         if len(msg.mentions) > 0:
                             user_msg_name = msg.mentions[0].name
@@ -602,14 +599,11 @@ def market_handle(bot, msg, cmd):
                                 else:
                                     yield from bot.client.send_message(msg.channel, ":envelope: " + user_msg_name + " hasn't sent any trade offers!")
                         else:
-                            print("hi")
                             user_id = cmd[3]
                             if user_id.startswith("<") and len(msg.mentions) > 0:
                                 user_id = msg.mentions[0].id
                             if market.is_number(user_id):
-                                print("test")
                                 trade = bot.market.get_trade(msg.author.id, user_id)
-                                print("yay?")
                                 if trade is not None:
                                     yield from bot.client.send_message(msg.channel, market.Market.stringify("trade", trade))
                                 else:
@@ -726,7 +720,7 @@ def market_handle(bot, msg, cmd):
                 elif cmd[1] != "my":
                     user_id = cmd[1]
                     changed = True
-                if (changed and is_me(msg)) or not changed:
+                if (changed and bot.is_me(msg)) or not changed:
                     if changed:
                         if len(msg.mentions) > 0:
                             user_msg_name = msg.mentions[0].name
@@ -881,7 +875,7 @@ def market_handle(bot, msg, cmd):
         elif cmd[0] == "ticket":
             formatting = bot.prefix + "ticket message|request|help|error|ban [message]"
             if cmd[1] == "*ban":
-                if is_me(msg):
+                if bot.is_me(msg):
                     user_id = cmd[2]
                     user_name = user_id
                     if len(msg.mentions) > 0:
@@ -905,7 +899,7 @@ def market_handle(bot, msg, cmd):
                 else:
                     yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
             elif cmd[1] == "*unban":
-                if is_me(msg):
+                if bot.is_me(msg):
                     user_id = cmd[2]
                     user_name = user_id
                     if len(msg.mentions) > 0:
@@ -927,7 +921,7 @@ def market_handle(bot, msg, cmd):
                         yield from bot.client.send_message(msg.channel, user_name + " isn't banned!")
                 else:
                     yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
-            elif msg.author.id not in bot.tickets["bans"] or is_me(msg) or cmd[1] == "ban":
+            elif msg.author.id not in bot.tickets["bans"] or bot.is_me(msg) or cmd[1] == "ban":
                 if msg.author.id not in bot.tickets["cds"] or time.time() - bot.tickets["cds"] > 30:
                     if cmd[1] == "ban" and not msg.author.id in bot.tickets["bans"]:
                         yield from bot.client.send_message(msg.channel, "Only users who are banned from sending tickets can send messages to the ban channel")
@@ -944,7 +938,7 @@ def market_handle(bot, msg, cmd):
             yield from bot.client.send_message(msg.author, "https://discord.gg/013GE1ZeT5ntIaWCW")
         elif cmd[0] == "items":
             formatting = bot.prefix + "items set|del|get|list [item] [item_type]"
-            if is_me(msg) or cmd[1] == "get" or (cmd[1] == "list" and len(cmd) > 2):
+            if bot.is_me(msg) or cmd[1] == "get" or (cmd[1] == "list" and len(cmd) > 2):
                 if cmd[1] == "set":
                     bot.market.set_item_type(cmd[2], cmd[3])
                     yield from bot.client.send_message(msg.channel, "Set **" + cmd[2] + "'s** item type to **" + cmd[3] + "**")
@@ -997,14 +991,86 @@ def market_handle(bot, msg, cmd):
             else:
                 yield from bot.client.send_message(msg.channel, "You aren't registered!")
         elif cmd[0] == "close":
-            if is_me(msg):
+            if bot.is_me(msg):
                 bot.market.save()
                 bot.market.close()
                 asyncio.get_event_loop().stop()
             else:
                 yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
-        else:
-            raise IndexError
+        elif cmd[0] == "achiev":
+            if cmd[1] == "mute":
+                if msg.author.id not in bot.market.achievs["__mute__"]:
+                    bot.market.achievs["__mute__"].append(msg.author.id)
+                    yield from bot.client.send_message(msg.channel, "Achievement updates muted")
+                else:
+                    yield from bot.client.send_message(msg.channel, "Achievement updates already muted!")
+            elif cmd[1] == "unmute":
+                if msg.author.id in bot.market.achievs["__mute__"]:
+                    bot.market.achievs["__mute__"].remove(msg.author.id)
+                    yield from bot.client.send_message(msg.channel, "Achievement updates unmuted")
+                else:
+                    yield from bot.client.send_message(msg.channel, "Achievement updates are already unmuted!")
+        elif cmd[0] == "guide":
+            yield from bot.client.send_message(msg.channel, "Coming soon:tm:")
+        elif cmd[0] == "chest":
+            formatting = bot.prefix + "chest list|open|daily [chest_type]"
+            if cmd[1] == "list":
+                #formatting = bot.prefix + "chest list"
+                if msg.author.id in bot.market.chests and len(bot.market.chests[msg.author.id]) != 0:
+                    chest_types = []
+                    for grade in bot.market.chests[msg.author.id]:
+                        if market.is_number(grade):
+                            amt = bot.market.chests[msg.author.id][grade]
+                            if amt > 0:
+                                line = "**" + str(amt) + "** " + market.Chest.LOOT[int(grade)][0]["name"] + " chest"
+                                if amt > 1:
+                                    line += "s"
+                                chest_types.append(line)
+                    if len(chest_types) > 0:
+                        yield from bot.client.send_message(msg.channel, ":gift: You have " + ", ".join(chest_types))
+                    else:
+                        yield from bot.client.send_message(msg.channel, ":gift: You don't have any chests!")
+                else:
+                    yield from bot.client.send_message(msg.channel, ":gift: You don't have any chests!")
+            elif cmd[1] == "open":
+                formatting = bot.prefix + "chest open [chest_name]"
+                chest_name = " ".join(cmd[2:])
+                if chest_name in market.Chest.LOOT_GRADE_NAMES:
+                    grade = str(market.Chest.LOOT_GRADE_NAMES.index(chest_name))
+                    if msg.author.id in bot.market.chests:
+                        if grade in bot.market.chests[msg.author.id] and bot.market.chests[msg.author.id][grade] > 0:
+                            chest = market.Chest(bot.market, msg.author.id, int(grade))
+                            results = chest.open()
+                            bot.market.chests[msg.author.id][grade] -= 1
+                            yield from bot.client.send_message(msg.channel, ":gift: Success! You got: \n ```\n" + "\n".join(results) + "\n```")
+                        else:
+                            yield from bot.client.send_message(msg.channel, ":gift: You don't have any " + chest_name + " chests!")
+                    else:
+                        yield from bot.client.send_message(msg.channel, ":gift: You don't have any chests!")
+                else:
+                    yield from bot.client.send_message(msg.channel, ":gift: Invalid chest type, must be one of: " + ", ".join(market.Chest.LOOT_GRADE_NAMES))
+            elif cmd[1] == "daily":
+                #formatting = "chest daily"
+                time_left = -1
+                if msg.author.id in bot.market.chests and "__daily__" in bot.market.chests[msg.author.id]:
+                    last_daily = bot.market.chests[msg.author.id]["__daily__"]
+                    elap = time.time() - last_daily
+                    if elap < 86400:
+                        ok = False
+                        time_left = 86400 - elap
+                if time_left < 0:
+                    bot.market.give_chest(msg.author.id, 0)
+                    bot.market.chests[msg.author.id]["__daily__"] = time.time()
+                    yield from bot.client.send_message(msg.channel, ":gift: You claimed your daily chest!")
+                else:
+                    line = ":gift: You can get another chest in "
+                    struct = datetime.datetime.fromtimestamp(time_left)
+                    if struct.hour > 0:
+                        line += str(struct.hour) + " hours "
+                    if struct.minute > 0:
+                        line += str(struct.minute) + " minutes"
+                    yield from bot.client.send_message(msg.channel, line)
+
     except (IndexError, ValueError, KeyError):
         yield from bot.client.send_message(msg.channel, formatting)
         traceback.print_exc()
@@ -1012,6 +1078,16 @@ def market_handle(bot, msg, cmd):
         yield from bot.client.send_message(msg.channel, "Something went wrong! Please use " + bot.prefix + "ticket error <message> to send an error report to me!")
         traceback.print_exc()
 
+    yield from handle_achievs(bot)
+
+def handle_achievs(bot):
+    for obj in bot.market.achiev_stack:
+        if not obj in bot.market.achievs["__mute__"]:
+            dest = bot.client.connection._get_private_channel_by_user(obj[0])
+            if dest is None:
+                dest = yield from bot.client.start_private_message(discord.User(id=obj[0], name="???", desc="0000", avatar=None, bot=False))
+            yield from bot.client.send_message(dest, "Test, you got an achiev: ! Use " + bot.prefix + "achiev mute to mute these messages")
+    bot.market.achiev_stack = []
 
 def market_handle_l(cmd):
     if cmd[0] == "market":
@@ -1022,11 +1098,12 @@ def market_handle_l(cmd):
 
 
 def setup(bot, help_page, filename):
+    bot.admin_list = []
     f = open("adminlist.txt")
     for line in f:
-        admin_list.append(line)
+        bot.admin_list.append(line)
     f.close()
-    print("Loaded admins: " + str(admin_list))
+    print("Loaded admins: " + str(bot.admin_list))
 
     bot.tickets["bans"] = []
     bot.tickets["channels"] = {}
@@ -1059,10 +1136,8 @@ def setup(bot, help_page, filename):
     help_page.register("market", "", "", hidden=True, header=":notebook_with_decorative_cover:Market commands:")
     help_page.register("items", "", "", hidden=True, header=":notebook_with_decorative_cover:Market commands:")
     help_page.register("trade", "", "", hidden=True, header=":notebook_with_decorative_cover:Trade commands:")
-    #help_page.register("trade my", "", "", hidden=True, header=":notebook_with_decorative_cover:Trade commands:")
     help_page.register("factory", "", "", hidden=True, header=":notebook_with_decorative_cover:Factory commands:")
-    #help_page.register("market my", "", "", root="market", hidden=True, header=":notebook_with_decorative_cover:Market commands:")
-    #help_page.register("market my offers", "", "", root=["market", "my"], hidden=True, header=":notebook_with_decorative_cover:Market commands:")
+    help_page.register("chest", "", "", hidden=True, header=":notebook_with_decorative_cover:Chest commands:")
 
     help_page.register("market", "", "does market stuff, see **%p%help market** for commands", root="core", header=":notebook_with_decorative_cover:Market commands:")
     help_page.register("market price", "", "information on the current market prices of items, see **%p%help market price**", root="market", header=":notebook_with_decorative_cover:Market price commands")
@@ -1108,6 +1183,11 @@ def setup(bot, help_page, filename):
     help_page.register("factory upgrades", "[upgrade_type] [level]", "shows information about the different factory upgrades, both parameters are optional", root="factory")
     help_page.register("factory upgrade", "[factory_name] [upgrade_type] with {optional items}", "upgrades a factory, {optional item} = item1, item1 etc", root="factory")
 
+    help_page.register("chest", "", "commands to do with reward chests, see **" + bot.prefix + "help chest** for commands", root="core", header=":notebook_with_decorative_cover:Chest commands:")
+    help_page.register("chest list", "", "shows you a list of your chests", root="chest")
+    help_page.register("chest open [chest_type]", "", "opens a chest of the given type", root="chest")
+    help_page.register("chest daily", "", "claims your daily chest", root="chest")
+
     help_page.register("exchange", "[amount] [item]", "exchanges x of an item for $x", root="core")
     help_page.register("balance", "", "checks your balance", root="core")
     help_page.register("balance history", "[page]", "shows your transaction history", root="core")
@@ -1118,6 +1198,7 @@ def setup(bot, help_page, filename):
 
     help_page.register("register", "", "registers to play the game and sets you up with your first factory", root="misc")
     help_page.register("unregister", "", "unregisters you, removing all trace of you from the market", root="misc")
+    help_page.register("guide", "", "gives you tips on what you should be working towards next", root="misc")
     help_page.register("join", "", "Gives you a bot invite link so you can get " + bot.name + " in your servers", root="misc")
     help_page.register("ticket", "message|request|help|error|ban [message]", "commands for sending a ticket to the admins", root="misc")
     help_page.register("server", "", "gives you an invite link to the offical MarketBot server", root="misc")
@@ -1162,5 +1243,8 @@ def setup(bot, help_page, filename):
     bot.register_command("items", market_handle, market_handle_l)
     bot.register_command("close", market_handle, market_handle_l)
     bot.register_command("exchange", market_handle, market_handle_l)
+    bot.register_command("achiev", market_handle, market_handle_l)
+    bot.register_command("guide", market_handle, market_handle_l)
+    bot.register_command("chest", market_handle, market_handle_l)
 
     print("Registered commands")

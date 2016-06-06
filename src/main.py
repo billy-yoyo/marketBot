@@ -33,7 +33,7 @@ def run(restarter, restart_source=None):
         if message.author.id == bot.client.user.id:
             if message.content == bot.ping_message:
                 yield from bot.client.edit_message(message, "Pong! Took " + str(int((time.time() - bot.ping_start)*1000000)/1000) + " milliseconds")
-            if not message.channel.is_private:
+            if not message.channel.is_private and not message.content.startswith("~"):
                 yield from asyncio.sleep(60)  # delete messages after 60 seconds
                 if bot.market.running:
                     yield from client.delete_message(message)
