@@ -8,7 +8,7 @@ def run(restarter, restart_source=None):
     client = discord.Client()
 
     def help_handle(bot, message, cmd):
-        yield from bot.client.send_message(message.author, help_page.get(bot, command=cmd[1:]))
+        yield from bot.client.send_message(message.author, bot.help_page.get(bot, command=cmd[1:]))
 
 
     def help_length_handle(cmd):
@@ -21,7 +21,7 @@ def run(restarter, restart_source=None):
         print(client.user.name)
         print(client.user.id)
         print('Loading plugins:')
-        botlib.load_plugins(bot, help_page)
+        botlib.load_plugins(bot, bot.help_page)
         if restart_source is not None:
             print('Confirming successful restart.')
             yield from client.send_message(restart_source.channel, ">>> Restart Complete <<<")
@@ -47,9 +47,11 @@ def run(restarter, restart_source=None):
     bot.ping_message = "Ping!"
     bot.name = "MarketBot"
     bot.prefix = "m$"
+    bot.tickets = {}
     bot.lookup_enabled = True
+    bot.version = "0.1.0"
     bot.register_command("help", help_handle, help_length_handle)
-    help_page = botlib.HelpPage(":notebook_with_decorative_cover:MarketBot help homepage:")
+    bot.help_page = botlib.HelpPage(":notebook_with_decorative_cover:MarketBot help homepage:")
     test_role = botlib.Role(all=True)
     print("Finding bot token...")
     token = None
@@ -60,4 +62,4 @@ def run(restarter, restart_source=None):
     f.close()
     print("Logging in...")
     client.run(token)
-    restarter()
+    #restarter()

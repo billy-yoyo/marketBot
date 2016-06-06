@@ -1,4 +1,4 @@
-import market, time, math, traceback, asyncio, shutil
+import market, time, math, traceback, datetime, asyncio
 from os import listdir
 from os.path import isfile, join
 
@@ -187,29 +187,74 @@ def market_handle(bot, msg, cmd):
                                     end = min(len(offer_list), start + bot.pages)
                             lines += join_arr("         **>>**  ", list(reversed(market.Market.stringify("offer", offer_list))), "\n", start=start, end=end)
                             yield from bot.client.send_message(msg.channel, lines)
+                    elif cmd[2] == "sales":
+                        formatting = bot.prefix + "market my sales [page]|remove|get [item|id] [page]"
+                        if len(cmd) > 3 and cmd[3] == "remove":
+                            formatting = bot.prefix + "market my sales remove [id]"
+                            sale_id = int(cmd[4])
+                            sales = bot.market.get_offer_list(user_id, sale_id)
+                            if sale_id < len(sales):
+                                sale = sales[sale_id]
+                                if bot.market.cancel_sale(sale):
+                                    yield from bot.client.send_message(msg.channel, ":package: " + user_msg_name + " sale successfully removed from the market")
+                                else:
+                                    yield from bot.client.send_message(msg.channel, ":package: " + user_msg_name + " sale was not found on the market!")
+                                sales.remove(sale)
+                            else:
+                                yield from bot.client.send_message(msg.channel, ":package: Invalid offer id (do my offers get [item] to generate an offers list)")
+                        else:
+                            formatting = bot.prefix + "market my sales [page]|get [item] [page]"
+                            page = 0
+                            item_name = None
+                            sale_list = None
+                            if len(cmd) > 3 and cmd[3] == "get":
+                                formatting = bot.prefix + "market my sales get [item] [page]"
+                                item_name = None
+                                if len(cmd) > 4:
+                                    item_name = cmd[4]
+                                    if len(cmd) > 5:
+                                        page = int(cmd[5])
+                                sale_list = bot.market.find_market_list(user_id, item_name)
+                            else:
+                                formatting = bot.prefix + "market my sales [page]"
+                                if len(cmd) > 3:
+                                    page = int(cmd[3])
+                            if sale_list is None:
+                                sale_list = bot.market.get_market_list(user_id, item_name)
+                            lines = ":package: " + user_msg_name + " offers: \n"
+                            start = 0
+                            end = -1
+                            if len(sale_list) > bot.pages:
+                                start = page * bot.pages
+                                if start >= len(sale_list) or page < 0:
+                                    yield from bot.client.send_message(msg.channel, ":package: Invalid page!")
+                                    return
+                                else:
+                                    end = min(len(sale_list), start + bot.pages)
+                            lines += join_arr("         **>>**  ", list(reversed(market.Market.stringify("sale", sale_list))), "\n", start=start, end=end)
+                            yield from bot.client.send_message(msg.channel, lines)
                 else:
                     yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
             elif cmd[1] == "refresh":
-                for item in bot.market.market:
-                    if not item.startswith("_"):
-                        bot.market.calculate_market_amount(item)
-                        bot.market.calculate_market_min_price(item)
-                for item in bot.market.offers:
-                    if not item.startswith("_"):
-                        bot.market.calculate_offer_amount(item)
-                        bot.market.calculate_offer_min_price(item)
-                yield from bot.client.send_message(msg.channel, ":package: Refreshed market!")
+                item = None
+                if len(cmd) > 2:
+                    item = cmd[2]
+                if bot.market.refresh(item):
+                    yield from bot.client.send_message(msg.channel, ":package: Refreshed market!")
+                else:
+                    yield from bot.client.send_message(msg.channel, ":package: Market was refreshed too recently! Please wait until refreshing again")
             else:
                 raise IndexError
         elif cmd[0] == "restart":
             if is_me(msg):
-                yield from bot.client.send_message(msg.channel, ">>> Restarting <<<")
-                print("Performing full restart!")
-                bot.market.save()
-                print("saved state...")
-                bot.market.close()
-                print("closed market...")
-                yield from bot.client.close()
+                yield from bot.client.send_message(msg.channel, "Disfunctional. Do not use.")
+                #yield from bot.client.send_message(msg.channel, ">>> Restarting <<<")
+                #print("Performing full restart!")
+                #bot.market.save()
+                #print("saved state...")
+                #bot.market.close()
+                #print("closed market...")
+                #yield from bot.client.close()
                 #bot.call_restart(msg)
             else:
                 yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
@@ -327,7 +372,7 @@ def market_handle(bot, msg, cmd):
             else:
                 yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
         elif cmd[0] == "backup":
-            formatting = "backup load|save|list [backup_name] - commands for backing up the market data"
+            formatting = "backup load|save|list|delete|info [backup_name] - commands for backing up the market data"
             if is_me(msg):
                 if len(cmd) >= 3 or cmd[1] == "list":
                     if cmd[1] == "load":
@@ -340,8 +385,10 @@ def market_handle(bot, msg, cmd):
                     elif cmd[1] == "save":
                         formatting = bot.prefix + "backup save [backup_name] - save the current data to a backup with that name"
                         backup_name = " ".join(cmd[2:])
-                        bot.market.save_backup(backup_name)
+                        bot.market.save_backup(bot, backup_name)
                         yield from bot.client.send_message(msg.channel, ":floppy_disk: Backed up, check console for information.")
+                    elif cmd[1] == "info":
+                        formatting = bot.prefix + "backup info [backup_name] - displays that backup's meta data"
                     elif cmd[1] == "delete":
                         formatting = bot.prefix + "backup delete [backup_name] - delete that backup"
                         backup_name = " ".join(cmd[2:])
@@ -360,6 +407,16 @@ def market_handle(bot, msg, cmd):
                     yield from bot.client.send_message(msg.channel, ":floppy_disk: Please give a backup name!")
             else:
                 yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
+        elif cmd[0] == "exchange":
+            formatting = bot.prefic + "exchange [amount] [item_name] - exchanges x of a resource for $x"
+            amount = int(cmd[1])
+            item_name = cmd[2]
+            if bot.market.get_inventory(msg.author.id, item_name) >= amount:
+                bot.market.add_inventory(msg.author.id, item_name, -amount, "Exchanging " + item_name + " for money")
+                bot.market.give_money(msg.author.id, item_name, amount, "Exchanging " + item_name + " for money")
+                yield from bot.client.send_message(msg.channel, ":package: Converted **" + str(amount) + " " + item_name + "** to **$" + str(amount) + "**")
+            else:
+                yield from bot.client.send_message(msg.channel, ":package: You don't have enough **" + item_name + "**!")
         elif cmd[0] == "ping":
             formatting = bot.prefix + "ping - shows the bots ping to the server"
             bot.ping_start = time.time()
@@ -425,7 +482,7 @@ def market_handle(bot, msg, cmd):
                 yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
         elif cmd[0] == "trade":
             if cmd[1] == "offer":
-                formatting = bot.prefix + "trade offer [user] {your items} for {their items} :: {items} = $money, 30 itemname, ..."
+                formatting = bot.prefix + "trade offer [user] {your items} for {their items} :: {items} = $money, 30 itemname, {factory_name} ..."
                 user_id = cmd[2]
                 user_name = cmd[2]
                 if cmd[2].startswith("<") and len(msg.mentions) > 0:
@@ -433,7 +490,7 @@ def market_handle(bot, msg, cmd):
                     user_name = msg.mentions[0].name
                 if market.is_number(user_id):
                     if user_id == msg.author.id:
-                        yield from bot.client.send_message(msg.channel, "Can't send a trade offer to yourself!")
+                        yield from bot.client.send_message(msg.channel, ":envelope: Can't send a trade offer to yourself!")
                     else:
                         raw_trades = (" ".join(cmd[3:])).split(" for ")
                         raw_trade_from = raw_trades[0].split(",")
@@ -456,12 +513,22 @@ def market_handle(bot, msg, cmd):
                                     trade_from[item_name] += item_value
                         raw_trade_to = raw_trades[1].split(",")
                         trade_to = {}
+                        factory_n = 0
                         for item in raw_trade_to:
+                            nospace_item = item.replace(" ", "")
                             item_name = None
                             item_value = 0
-                            if item.replace(" ", "").startswith("$"):
+                            if nospace_item.startswith("$"):
                                 item_name = "$$$"
                                 item_value = int(item.replace(" ", "")[1:])
+                            elif nospace_item.startswith("{") and nospace_item.endswith("}"):
+                                factory_n += 1
+                                item_name = "!!!" + str(factory_n)
+                                item_value = item
+                                while item_value.startswith(" ") or item_value.startswith("{"):
+                                    item_value = item_value[1:]
+                                while item_value.endswith(" ") or item_value.endswith("}"):
+                                    item_value = item_value[:-1]
                             else:
                                 spl_item = item.split(" ")
                                 spl_item[:] = [x for x in spl_item if x != ""]
@@ -474,21 +541,29 @@ def market_handle(bot, msg, cmd):
                                     trade_to[item_name] += item_value
                         result = bot.market.create_trade_offer(msg.author.id, msg.author.name, user_id, user_name, trade_from, trade_to)
                         if result == market.Market.TRADE_SUCCESS:
-                             yield from bot.client.send_message(msg.channel, "Sent trade offer!")
+                             yield from bot.client.send_message(msg.channel, ":envelope: Sent trade offer!")
                         elif result == market.Market.TRADE_ALREADY_EXISTS:
-                            yield from bot.client.send_message(msg.channel, "Trade failed as you already have a pending offer to " + user_name)
+                            yield from bot.client.send_message(msg.channel, ":envelope: Trade failed as you already have a pending offer to " + user_name)
                         elif result == market.Market.TRADE_FROM_NOT_ENOUGH_ITEM:
-                            yield from bot.client.send_message(msg.channel, "Trade failed because you don't have enough of an item to fulfill the trade!")
+                            yield from bot.client.send_message(msg.channel, ":envelope: Trade failed because you don't have enough of an item to fulfill the trade!")
                         elif result == market.Market.TRADE_FROM_NOT_ENOUGH_MONEY:
-                            yield from bot.client.send_message(msg.channel, "Trade failed because you don't have enough money to fulfill the trade!")
+                            yield from bot.client.send_message(msg.channel, ":envelope: Trade failed because you don't have enough money to fulfill the trade!")
                         elif result == market.Market.TRADE_TO_NOT_ENOUGH_ITEM:
-                            yield from bot.client.send_message(msg.channel, "Trade failed because " + user_name + " doesn't have enough of an item to fulfill the trade!")
+                            yield from bot.client.send_message(msg.channel, ":envelope: Trade failed because " + user_name + " doesn't have enough of an item to fulfill the trade!")
                         elif result == market.Market.TRADE_TO_NOT_ENOUGH_MONEY:
-                            yield from bot.client.send_message(msg.channel, "Trade failed because " + user_name + " doesn't have enough money to fulfill the trade!")
+                            yield from bot.client.send_message(msg.channel, ":envelope: Trade failed because " + user_name + " doesn't have enough money to fulfill the trade!")
+                        elif result == market.Market.TRADE_TO_NO_SUCH_FACTORY:
+                            yield from bot.client.send_message(msg.channel, ":envelope: Trade failed because " + user_name + " doesn't have one of the factories listed!")
+                        elif result == market.Market.TRADE_FROM_NO_SUCH_FACTORY:
+                            yield from bot.client.send_message(msg.channel, ":envelope: Trade failed because you don't have one of the factories listed!")
+                        elif result == market.Market.TRADE_FROM_UNSELLABLE_FACTORY:
+                            yield from bot.client.send_message(msg.channel, ":envelope: Trade failed because one of your listed factories can't be sold!")
+                        elif result == market.Market.TRADE_TO_UNSELLABLE_FACTORY:
+                            yield from bot.client.send_message(msg.channel, ":envelope: Trade failed because one of " + user_name + "'s listed factories can't be sold!")
                         else:
-                            yield from bot.client.send_message(msg.channel, "Trade failed with an unspecified error " + str(result))
+                            yield from bot.client.send_message(msg.channel, ":envelope: Trade failed with an unspecified error " + str(result))
                 else:
-                    yield from bot.client.send_message(msg.channel, "Invalid user, must be a mention or a user ID")
+                    yield from bot.client.send_message(msg.channel, ":envelope: Invalid user, must be a mention or a user ID")
             elif cmd[1] == "my" or cmd[1].startswith("<") or market.is_number(cmd[1]):
                 formatting = bot.prefix + "trade my sent|received [user]"
                 user_id = msg.author.id
@@ -518,14 +593,14 @@ def market_handle(bot, msg, cmd):
                             result = bot.market.get_trades_from(user_id)
                             if len(result) > 0:
                                 if user_msg_name == "Your":
-                                    yield from bot.client.send_message(msg.channel, "You have sent trade offers to " + ", ".join(result))
+                                    yield from bot.client.send_message(msg.channel, ":envelope: You have sent trade offers to " + ", ".join(result))
                                 else:
-                                    yield from bot.client.send_message(msg.channel, user_msg_name + " has sent trade offers to " + ", ".join(result))
+                                    yield from bot.client.send_message(msg.channel, ":envelope: " + user_msg_name + " has sent trade offers to " + ", ".join(result))
                             else:
                                 if user_msg_name == "Your":
-                                    yield from bot.client.send_message(msg.channel, "You haven't sent any trade offers!")
+                                    yield from bot.client.send_message(msg.channel, ":envelope: You haven't sent any trade offers!")
                                 else:
-                                    yield from bot.client.send_message(msg.channel, user_msg_name + " hasn't sent any trade offers!")
+                                    yield from bot.client.send_message(msg.channel, ":envelope: " + user_msg_name + " hasn't sent any trade offers!")
                         else:
                             print("hi")
                             user_id = cmd[3]
@@ -538,23 +613,23 @@ def market_handle(bot, msg, cmd):
                                 if trade is not None:
                                     yield from bot.client.send_message(msg.channel, market.Market.stringify("trade", trade))
                                 else:
-                                    yield from bot.client.send_message(msg.channel, "Couldn't find a trade offer.")
+                                    yield from bot.client.send_message(msg.channel, ":envelope: Couldn't find a trade offer.")
                             else:
-                                yield from bot.client.send_message(msg.channel, "Invalid user, use a mention or a user ID")
+                                yield from bot.client.send_message(msg.channel, ":envelope: Invalid user, use a mention or a user ID")
                     elif cmd[2] == "received" or cmd[2] == "recieved":
                         formatting = bot.prefix + "trade my received [user]"
                         if len(cmd) == 3:
                             result = bot.market.get_trades_to(user_id)
                             if len(result) > 0:
                                 if user_msg_name == "Your":
-                                    yield from bot.client.send_message(msg.channel, "You have pending trade offers from " + ", ".join(result))
+                                    yield from bot.client.send_message(msg.channel, ":envelope: You have pending trade offers from " + ", ".join(result))
                                 else:
-                                    yield from bot.client.send_message(msg.channel, user_msg_name + " has pending trade offers from " + ", ".join(result))
+                                    yield from bot.client.send_message(msg.channel, ":envelope: " + user_msg_name + " has pending trade offers from " + ", ".join(result))
                             else:
                                 if user_msg_name == "Your":
-                                    yield from bot.client.send_message(msg.channel, "You don't have any trade offers!")
+                                    yield from bot.client.send_message(msg.channel, ":envelope: You don't have any trade offers!")
                                 else:
-                                    yield from bot.client.send_message(msg.channel, user_msg_name + " doesn't have any trade offers!")
+                                    yield from bot.client.send_message(msg.channel, ":envelope: " + user_msg_name + " doesn't have any trade offers!")
                         else:
                             user_id = cmd[3]
                             if user_id.startswith("<") and len(msg.mentions) > 0:
@@ -564,11 +639,11 @@ def market_handle(bot, msg, cmd):
                                 if trade is not None:
                                     yield from bot.client.send_message(msg.channel, bot.market.stringify("trade", trade))
                                 else:
-                                    yield from bot.client.send_message(msg.channel, "Couldn't find a trade offer.")
+                                    yield from bot.client.send_message(msg.channel, ":envelope: Couldn't find a trade offer.")
                             else:
-                                yield from bot.client.send_message(msg.channel, "Invalid user, use a mention or a user ID")
+                                yield from bot.client.send_message(msg.channel, ":envelope: Invalid user, use a mention or a user ID")
                 else:
-                    yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
+                    yield from bot.client.send_message(msg.channel, ":envelope: Only the admin can use that command!")
             elif cmd[1] == "accept":
                 formatting = bot.prefix + "trade accept [user]"
                 user_id = cmd[3]
@@ -579,21 +654,29 @@ def market_handle(bot, msg, cmd):
                     result = result_raw[0]
                     trade = result_raw[1]
                     if result == market.Market.TRADE_SUCCESS:
-                        yield from bot.client.send_message(msg.channel, "Accepted trade: \n" + market.Market.stringify("trade", trade))
+                        yield from bot.client.send_message(msg.channel, ":envelope: Accepted trade: \n" + market.Market.stringify("trade", trade))
                     elif result == market.Market.TRADE_DOESNT_EXIST:
-                        yield from bot.client.send_message(msg.channel, "You don't have any pending trade offers from " + trade["from_name"])
+                        yield from bot.client.send_message(msg.channel, ":envelope: You don't have any pending trade offers from " + trade["from_name"])
                     elif result == market.Market.TRADE_TO_NOT_ENOUGH_ITEM:
-                        yield from bot.client.send_message(msg.channel, "Trade failed because you don't have enough of an item to fulfill the trade!")
+                        yield from bot.client.send_message(msg.channel, ":envelope: Trade failed because you don't have enough of an item to fulfill the trade!")
                     elif result == market.Market.TRADE_TO_NOT_ENOUGH_MONEY:
-                        yield from bot.client.send_message(msg.channel, "Trade failed because you don't have enough money to fulfill the trade!")
+                        yield from bot.client.send_message(msg.channel, ":envelope: Trade failed because you don't have enough money to fulfill the trade!")
                     elif result == market.Market.TRADE_FROM_NOT_ENOUGH_ITEM:
-                        yield from bot.client.send_message(msg.channel, "Trade failed because " + trade["from_name"] + " doesn't have enough of an item to fulfill the trade!")
+                        yield from bot.client.send_message(msg.channel, ":envelope: Trade failed because " + trade["from_name"] + " doesn't have enough of an item to fulfill the trade!")
                     elif result == market.Market.TRADE_FROM_NOT_ENOUGH_MONEY:
-                        yield from bot.client.send_message(msg.channel, "Trade failed because " + trade["from_name"] + " doesn't have enough money to fulfill the trade!")
+                        yield from bot.client.send_message(msg.channel, ":envelope: Trade failed because " + trade["from_name"] + " doesn't have enough money to fulfill the trade!")
+                    elif result == market.Market.TRADE_FROM_NO_SUCH_FACTORY:
+                        yield from bot.client.send_message(msg.channel, ":envelope: Trade failed because " + trade["from_name"] + " no longer has one of the factories being traded!")
+                    elif result == market.Market.TRADE_TO_NO_SUCH_FACTORY:
+                        yield from bot.client.send_message(msg.channel, ":envelope: Trade failed because you no longer have one of the factories being traded!")
+                    elif result == market.Market.TRADE_FROM_UNSELLABLE_FACTORY:
+                        yield from bot.client.send_message(msg.channel, ":envelope: Trade failed because one of " + trade["from_name"] + "'s factories cannot be sold!")
+                    elif result == market.Market.TRADE_TO_UNSELLABLE_FACTORY:
+                        yield from bot.client.send_message(msg.channel, ":envelope: Trade failed because one of your factories can't be sold!")
                     else:
-                        yield from bot.client.send_message(msg.channel, "Trade failed with an unspecified error " + str(result))
+                        yield from bot.client.send_message(msg.channel, ":envelope: Trade failed with an unspecified error " + str(result))
                 else:
-                    yield from bot.client.send_message(msg.channel, "Invalid user, use a mention or a user ID")
+                    yield from bot.client.send_message(msg.channel, ":envelope: Invalid user, use a mention or a user ID")
             elif cmd[1] == "decline":
                 formatting = bot.prefix + "trade decline [user]"
                 user_id = cmd[3]
@@ -604,13 +687,13 @@ def market_handle(bot, msg, cmd):
                     result = result_raw[0]
                     trade = result_raw[1]
                     if result == market.Market.TRADE_SUCCESS:
-                        yield from bot.client.send_message(msg.channel, "Declined trade from " + trade["from_name"] + "\n " + market.Market.stringify("trade", trade))
+                        yield from bot.client.send_message(msg.channel, ":envelope: Declined trade from " + trade["from_name"] + "\n " + market.Market.stringify("trade", trade))
                     elif result == market.Market.TRADE_DOESNT_EXIST:
-                        yield from bot.client.send_message(msg.channel, "You don't have any pending trade offers from " + trade["from_name"])
+                        yield from bot.client.send_message(msg.channel, ":envelope: You don't have any pending trade offers from " + trade["from_name"])
                     else:
-                        yield from bot.client.send_message(msg.channel, "Trade failed with an unspecified error " + str(result))
+                        yield from bot.client.send_message(msg.channel, ":envelope: Trade failed with an unspecified error " + str(result))
                 else:
-                    yield from bot.client.send_message(msg.channel, "Invalid user, use a mention or a user ID")
+                    yield from bot.client.send_message(msg.channel, ":envelope: Invalid user, use a mention or a user ID")
             elif cmd[1] == "cancel":
                 formatting = bot.prefix + "trade cancel [user]"
                 user_id = cmd[2]
@@ -621,39 +704,308 @@ def market_handle(bot, msg, cmd):
                     result = result_raw[0]
                     trade = result_raw[1]
                     if result == market.Market.TRADE_SUCCESS:
-                        yield from bot.client.send_message(msg.channel, "Cancelled trade to " + trade["to_name"] + "\n " + market.Market.stringify("trade", trade))
+                        yield from bot.client.send_message(msg.channel, ":envelope: Cancelled trade to " + trade["to_name"] + "\n " + market.Market.stringify("trade", trade))
                     elif result == market.Market.TRADE_DOESNT_EXIST:
-                        yield from bot.client.send_message(msg.channel, "You haven't sent any trade offers to " + trade["to_name"])
+                        yield from bot.client.send_message(msg.channel, ":envelope: You haven't sent any trade offers to " + trade["to_name"])
                     else:
-                        yield from bot.client.send_message(msg.channel, "Trade failed with an unspecified error " + str(result))
+                        yield from bot.client.send_message(msg.channel, ":envelope: Trade failed with an unspecified error " + str(result))
                 else:
-                    yield from bot.client.send_message(msg.channel, "Invalid user, use a mention or a user ID")
+                    yield from bot.client.send_message(msg.channel, ":envelope: Invalid user, use a mention or a user ID")
+            else:
+                raise IndexError
+        elif cmd[0] == "factory":
+            formatting = bot.prefix + "factory my|auto|upgrade|upgrades"
+            if cmd[1] == "my" or cmd[1].startswith("<") or market.is_number(cmd[1]):
+                formatting = bot.prefix + "factory my list|change|info"
+                user_id = msg.author.id
+                user_msg_name = "Your"
+                changed = False
+                if cmd[1].startswith("<"):
+                    user_id = cmd[1][2:-1]
+                    changed = True
+                elif cmd[1] != "my":
+                    user_id = cmd[1]
+                    changed = True
+                if (changed and is_me(msg)) or not changed:
+                    if changed:
+                        if len(msg.mentions) > 0:
+                            user_msg_name = msg.mentions[0].name
+                        else:
+                            if bot.lookup_enabled:
+                                for server in bot.client.servers:
+                                    for member in server.members:
+                                        if member.id == user_id:
+                                            user_msg_name = member.name
+                            if user_msg_name == "Your":
+                                user_msg_name = user_id
+                    if cmd[2] == "list":
+                        formatting = bot.prefix + "factory my list"
+                        names = bot.market.get_factory_name_list(user_id)
+                        if len(names) == 0:
+                            if user_msg_name == "Your":
+                                yield from bot.client.send_message(msg.channel, ":factory: You don't have any factories!")
+                            else:
+                                yield from bot.client.send_message(msg.channel, ":factory: " + user_msg_name + " doesn't have any factories")
+                        else:
+                            if user_msg_name != "Your":
+                                user_msg_name += "'s"
+                            yield from bot.client.send_message(msg.channel, ":factory: " + user_msg_name + " factories: " + ", ".join(names))
+                    elif cmd[2] == "change":
+                        formatting = bot.prefix + "factory my change [old_nickname] to [new_nickname]"
+                        nicks = " ".join(cmd[3:]).split(" to ")
+                        if market.is_number(nicks[1]):
+                            yield from bot.client.send_message(msg.channel, ":factory: Factory nicknames cannot be entirely numeric (eg factory1 is allows, 111 is not)")
+                        else:
+                            if bot.market.set_factory_nick(user_id, nicks[0], nicks[1]):
+                                yield from bot.client.send_message(msg.channel, ":factory: Renamed " + nicks[0] + " to " + nicks[1])
+                            else:
+                                if user_msg_name == "Your":
+                                    yield from bot.client.send_message(msg.channel, ":factory: You don't have a factory named " + nicks[0])
+                                else:
+                                    yield from bot.client.send_message(msg.channel, ":factory: " + user_msg_name + " doesn't have a factory named " + nicks[0])
+                    elif cmd[2] == "info":
+                        formatting = bot.prefix + "factory my info [factory_name]"
+                        name = " ".join(cmd[3:])
+                        factory = bot.market.get_factory(user_id, name)
+                        if user_msg_name != "Your":
+                            user_msg_name += "'s"
+                        yield from bot.client.send_message(msg.channel, factory.get_info())
+                    else:
+                        raise IndexError
+                else:
+                    yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
+            elif cmd[1] == "auto":
+                formatting = bot.prefix + "factory auto on|off|restart [factory_name]"
+                toggle_on = -1
+                if cmd[2] == "on":
+                    formatting = bot.prefix + "factory auto on [factory_name]"
+                    toggle_on = 0
+                elif cmd[2] == "off":
+                    formatting = bot.prefix + "factory auto off [factory_name]"
+                    toggle_on = 1
+                elif cmd[2] == "restart":
+                    formatting = bot.prefix + "factory auto restart [factory_name]"
+                    toggle_on = 2
+                if toggle_on >= 0:
+                    name = " ".join(cmd[3:])
+                    factory = bot.market.get_factory(msg.author.id, name)
+                    if factory is not None:
+                        if factory.producing == 2 and toggle_on == 0:
+                            yield from bot.client.send_message(msg.channel, ":factory: **" + name + "** is already auto producing!")
+                        elif factory.producing == 0 and (toggle_on == 1 or toggle_on == 2):
+                            yield from bot.client.send_message(msg.channel, ":factory: **" + name + "** isn't auto producing!")
+                        else:
+                            if factory.auto_efficieny > 0:
+                                if toggle_on == 0:
+                                    amount = factory.start_auto_produce(bot.market.factories["produce_delay"])
+                                    yield from bot.client.send_message(msg.channel, ":factory: **" + name + "** has started producing **" + str(amount) + " " + factory.item + "** every **" + str(bot.market.factories["produce_delay"]) + "** seconds")
+                                elif toggle_on == 1:
+                                    factory.stop_auto()
+                                    yield from bot.client.send_message(msg.channel, ":factory: **" + name + "** has stopped auto producing **" + factory.item + "**")
+                                elif toggle_on == 2:
+                                    factory.stop_auto()
+                                    amount = factory.start_auto_produce(bot.market.factories["produce_delay"])
+                                    yield from bot.client.send_message(msg.channel, ":factory: **" + name + "** has restarted and is now producing **" + str(amount) + " " + factory.item + "** every **" + str(bot.market.factories["produce_delay"]) + "** seconds")
+                                else:
+                                    yield from bot.client.send_message(msg.channel, ":factory: Whoops, something went wrong! (Error: " + str(toggle_on) + "), Please try again!")
+                            else:
+                                yield from bot.client.send_message(msg.channel, ":factory: **" + name + "** cannot auto produce yet! see " + bot.prefix + "help factory upgrade")
+                    else:
+                        yield from bot.client.send_message(msg.channel, ":factory: Could not find factory named " + name)
+                else:
+                    raise IndexError
+            elif cmd[1] == "upgrades":
+                formatting = bot.prefix + "factory upgrades [name] [level]"
+                if len(cmd) == 2:
+                    yield from bot.client.send_message(msg.channel, ":factory: Types of upgrade: **" + "**, **".join(market.Factory.FACTORY_UPGRADES) + " **")
+                elif len(cmd) == 3:
+                    name = cmd[2]
+                    if name in market.Factory.FACTORY_COSTS:
+                        yield from bot.client.send_message(msg.channel, ":factory: " + market.Factory.FACTORY_COSTS[name][0])
+                    else:
+                        yield from bot.client.send_message(msg.channel, ":factory: " + name + " was not recognised as a type of upgrade, see " + bot.prefix + "factory upgrades")
+                else:
+                    name = cmd[2]
+                    level = int(cmd[3])
+                    if name in market.Factory.FACTORY_COSTS:
+                        if level > 0 and level < len(market.Factory.FACTORY_COSTS[name]):
+                            yield from bot.client.send_message(msg.channel, ":factory: " + market.Factory.FACTORY_COSTS[name][level]["__DESC__"])
+                        else:
+                            yield from bot.client.send_message(msg.channel, ":factory: Invalid level, must be from 1 to " + str(len(market.Factory.FACTORY_COSTS[name])-1) + " (inclusive)")
+                    else:
+                        yield from bot.client.send_message(msg.channel, ":factory: " + name + " was not recognised as a type of upgrade, see " + bot.prefix + "factory upgrades")
+            elif cmd[1] == "upgrade":
+                formatting = bot.prefix + "factory upgrade [factory_name] [upgrade_type] with {optional items} :: {optional items} = item_name, item_name and item_name etc."
+                spl1 = " ".join(cmd[2:]).split(" with ")
+                spl2 = spl1[0].split(" ")
+                spl3 = spl1[1].replace("and", ",").replace(" ", "").split(",")
+                name = " ".join(spl2[0:-1])
+                upgrade_type = spl2[-1]
+                mats = {}
+                for item_name in spl3:
+                    item_type = bot.market.get_item_type(item_name)
+                    if item_type not in mats:
+                        mats[item_type] = []
+                    mats[item_type].append(item_name)
+                factory = bot.market.get_factory(msg.author.id, name)
+                if factory is not None:
+                    result = factory.upgrade(upgrade_type, mats)
+                    if result is None: # success
+                        yield from bot.client.send_message(msg.channel, ":factory: Succesfully upgraded **" + factory.get_name() + "** to **" + upgrade_type + "** level **" + str(factory.upgrade_levels[upgrade_type]) + "**")
+                    elif result == "MAX": # max level
+                        yield from bot.client.send_message(msg.channel, ":factory: **" + factory.get_name() + "** is already at max **" + upgrade_type + "** level!")
+                    elif result == "ERROR": # invalid upgrade name
+                        yield from bot.client.send_message(msg.channel, ":factory: **" + upgrade_type + "** was not recognised as a type of upgrade, see " + bot.prefix + "factory upgrades")
+                    else:
+                        yield from bot.client.send_message(msg.channel, ":factory: You don't have enough " + str(result) + "!")
+                else:
+                    yield from bot.client.send_message(msg.channel, ":factory: Could not find factory named " + name)
             else:
                 raise IndexError
         elif cmd[0] == "info":
             lines = [
-                "**MarketBot** is a CookieClicker-esque bot where you produce items in factories",
+                "**" + bot.name + "** is a CookieClicker-esque bot where you produce items in factories",
                 "Upgrading these factories with the items you produce or buy from the discord-wide market",
                 "",
                 "To see a list of my commands, use **" + bot.prefix + "help**",
                 "To get the bot in your server, use **" + bot.prefix + "join**",
                 "To get an invite to the official MarketBot server, use **" + bot.prefix + "server**",
                 "To register to play, use **" + bot.prefix + "register**",
+                "To get " + bot.name + " in your server, use https://discordapp.com/oauth2/authorize?client_id=187857778583404545&scope=bot&permissions=0"
                 "",
                 "Read up fully on how the game works at our github page: https://github.com/billy-yoyo/marketBot/ ",
             ]
             yield from bot.client.send_message(msg.author, "\n".join(lines))
         elif cmd[0] == "join":
-            yield from bot.client.send_message(msg.channel, "Coming soon (tm)")
+            yield from bot.client.send_message(msg.author, "To add " + bot.name + " to your server, use this link: https://discordapp.com/oauth2/authorize?client_id=187857778583404545&scope=bot&permissions=0")
         elif cmd[0] == "ticket":
-            yield from bot.client.send_message(msg.channel, "Coming soon (tm)")
+            formatting = bot.prefix + "ticket message|request|help|error|ban [message]"
+            if cmd[1] == "*ban":
+                if is_me(msg):
+                    user_id = cmd[2]
+                    user_name = user_id
+                    if len(msg.mentions) > 0:
+                        user_id = msg.mentions[0].id
+                        user_name = msg.mentions[0].name
+                    else:
+                        if bot.lookup_enabled:
+                            for server in bot.client.servers:
+                                for member in server.members:
+                                    if member.id == user_id:
+                                        user_name = member.name
+                    if not user_id in bot.tickets["bans"]:
+                        bot.tickets["bans"].append(user_id)
+                        f = open("ticket_bans.txt", "w")
+                        for uid in bot.tickets["bans"]:
+                            f.write(uid + "\n")
+                        f.close()
+                        yield from bot.client.send_message(msg.channel, user_name + " was banned from sending tickets!")
+                    else:
+                        yield from bot.client.send_message(msg.channel, user_name + " is already banned!")
+                else:
+                    yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
+            elif cmd[1] == "*unban":
+                if is_me(msg):
+                    user_id = cmd[2]
+                    user_name = user_id
+                    if len(msg.mentions) > 0:
+                        user_id = msg.mentions[0].id
+                        user_name = msg.mentions[0].name
+                    else:
+                        if bot.lookup_enabled:
+                            for server in bot.client.servers:
+                                for member in server.members:
+                                    if member.id == user_id:
+                                        user_name = member.name
+                    if user_id in bot.tickets["bans"]:
+                        bot.tickets["bans"].remove(user_id)
+                        f = open("ticket_bans.txt", "w")
+                        for uid in bot.tickets["bans"]:
+                            f.write(uid + "\n")
+                        f.close()
+                    else:
+                        yield from bot.client.send_message(msg.channel, user_name + " isn't banned!")
+                else:
+                    yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
+            elif msg.author.id not in bot.tickets["bans"] or is_me(msg) or cmd[1] == "ban":
+                if msg.author.id not in bot.tickets["cds"] or time.time() - bot.tickets["cds"] > 30:
+                    if cmd[1] == "ban" and not msg.author.id in bot.tickets["bans"]:
+                        yield from bot.client.send_message(msg.channel, "Only users who are banned from sending tickets can send messages to the ban channel")
+                    else:
+                        if cmd[1] in bot.tickets["channels"]:
+                            yield from bot.client.send_message(bot.tickets["channels"][cmd[1]], "[" + msg.author.name + " : " + msg.author.id + "] (" + datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S') + ") : " + " ".join(cmd[2:]))
+                        else:
+                            yield from bot.client.send_message(msg.channel, "Invalid ticket type, must be one of message, request, help, error, ban")
+                else:
+                    yield from bot.client.send_message(msg.channel, "You sent a ticket too recently, you must wait another " + str(30 - (time.time() - bot.tickets["cds"])) + " seconds before sending another!")
+            else:
+                yield from bot.client.send_message(msg.channel, "You are banned from sending tickets, use " + bot.prefix + "ticket ban <message> to contest this ban")
         elif cmd[0] == "server":
             yield from bot.client.send_message(msg.author, "https://discord.gg/013GE1ZeT5ntIaWCW")
+        elif cmd[0] == "items":
+            formatting = bot.prefix + "items set|del|get|list [item] [item_type]"
+            if is_me(msg) or cmd[1] == "get" or (cmd[1] == "list" and len(cmd) > 2):
+                if cmd[1] == "set":
+                    bot.market.set_item_type(cmd[2], cmd[3])
+                    yield from bot.client.send_message(msg.channel, "Set **" + cmd[2] + "'s** item type to **" + cmd[3] + "**")
+                elif cmd[1] == "get":
+                    yield from bot.client.send_message(msg.channel, "**" + cmd[2] + "'s** item type is **" + bot.market.get_item_type(cmd[2]) + "**")
+                elif cmd[1] == "del":
+                    old_type = bot.market.get_item_type(cmd[2])
+                    bot.market.delete_item_type(cmd[2])
+                    yield from bot.client.send_message(msg.channel, "Deleted item type for **" + cmd[2] + "** (was **" + old_type + "**)")
+                elif cmd[1] == "list":
+                    item_type_name = "registered"
+                    item_list = bot.market.item_types
+                    if len(cmd) > 2:
+                        item_list = bot.market.get_items_from(cmd[2])
+                        item_type_name = cmd[2]
+                    lines = "```\n"
+                    for item in bot.market.item_types:
+                        lines += item + ": " + bot.market.item_types[item] + "\n"
+                    lines += "```"
+                    yield from bot.client.send_message(msg.channel, "List of " + item_type_name + " items: \n" + lines)
+                else:
+                    raise IndexError
+            else:
+                yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
         elif cmd[0] == "register":
-            yield from bot.client.send_message(msg.channel, "Coming soon (tm)")
+            if not msg.author.id in bot.market.factories:
+                lowest = None
+                lower_amt = 0
+                for item_name in bot.market.get_items_from("base"):
+                    if lowest is None or bot.market.get_market_amount(item_name) < lower_amt:
+                        lowest = item_name
+                if lowest is not None:
+                    factory = bot.market.create_factory(msg.author.id, lowest)
+                    yield from bot.client.send_message(msg.channel, "Registered! You have been given a **" + lowest + "** factory, it's ID is " + factory.id + "\n" +
+                                                                    "To give your factory a name, do '" + bot.prefix + "factory my change " + factory.id + " to your_factory_name' \n" +
+                                                                    "For tips on what to do next, use " + bot.prefix + "guide")
+                else:
+                    yield from bot.client.send_message(msg.channel, "Failed to register, no base items could be found!")
+            else:
+                yield from bot.client.send_message(msg.channel, "You are already registered! See " + bot.prefix + "guide for tips on what you should be doing next")
+        elif cmd[0] == "unregister":
+            if msg.author.id in bot.market.factories:
+                yield from bot.client.send_message(msg.author, "This is an unreversable action and will wipe all of your progress, are you sure you want to continue? (Type 'yes' to continue)")
+                response = yield from bot.client.wait_for_message(timeout=300, channel=msg.author)
+                if response.lower() == "yes":
+                    bot.market.wipe(msg.author.id)
+                    yield from bot.client.send_message(msg.author, "Wiped your progress and unregistered you.")
+                else:
+                    yield from bot.client.send_message(msg.author, "Cancelled, did not wipe your progress.")
+            else:
+                yield from bot.client.send_message(msg.channel, "You aren't registered!")
+        elif cmd[0] == "close":
+            if is_me(msg):
+                bot.market.save()
+                bot.market.close()
+                asyncio.get_event_loop().stop()
+            else:
+                yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
         else:
             raise IndexError
-    except (IndexError, ValueError):
+    except (IndexError, ValueError, KeyError):
         yield from bot.client.send_message(msg.channel, formatting)
         traceback.print_exc()
     except Exception:
@@ -676,34 +1028,110 @@ def setup(bot, help_page, filename):
     f.close()
     print("Loaded admins: " + str(admin_list))
 
+    bot.tickets["bans"] = []
+    bot.tickets["channels"] = {}
+    bot.tickets["cds"] = {}
+    f = open("ticket_bans.txt", "r")
+    for line in f:
+        bot.tickets["bans"].append(line.replace("\n", ""))
+    f.close()
+    for server in bot.client.servers:
+        if server.id == "188443977286942720": # marketbot server
+            for channel in server.channels:
+                if channel.id == "189102356955136000": # ticket_request channel
+                    bot.tickets["channels"]["request"] = channel
+                elif channel.id == "189103209581772810": # ticket_help channel
+                    bot.tickets["channels"]["help"] = channel
+                elif channel.id == "189103234240086016": # ticket_error channel
+                    bot.tickets["channels"]["error"] = channel
+                elif channel.id == "189103285154742273": # ticket_msg channel
+                    bot.tickets["channels"]["message"] = channel
+                elif channel.id == "189105413050990592": # ticket_ban channel
+                    bot.tickets["channels"]["ban"] = channel
+
+
     bot.market = market.Market()
     print("Created market")
 
-    help_page.register("core", "", "", silent=True, header=":notebook_with_decorative_cover:Core commands:")
-    help_page.register("misc", "", "", silent=True, header=":notebook_with_decorative_cover:Miscellaneous commands:")
-    help_page.register("admin", "", "", silent=True, header=":notebook_with_decorative_cover:Admin commands:")
-    help_page.register("market", "", "", silent=True, header=":notebook_with_decorative_cover:Market commands:")
+    help_page.register("core", "", "", hidden=True, header=":notebook_with_decorative_cover:Core commands:")
+    help_page.register("misc", "", "", hidden=True, header=":notebook_with_decorative_cover:Miscellaneous commands:")
+    help_page.register("admin", "", "", hidden=True, header=":notebook_with_decorative_cover:Admin commands:")
+    help_page.register("market", "", "", hidden=True, header=":notebook_with_decorative_cover:Market commands:")
+    help_page.register("items", "", "", hidden=True, header=":notebook_with_decorative_cover:Market commands:")
+    help_page.register("trade", "", "", hidden=True, header=":notebook_with_decorative_cover:Trade commands:")
+    #help_page.register("trade my", "", "", hidden=True, header=":notebook_with_decorative_cover:Trade commands:")
+    help_page.register("factory", "", "", hidden=True, header=":notebook_with_decorative_cover:Factory commands:")
+    #help_page.register("market my", "", "", root="market", hidden=True, header=":notebook_with_decorative_cover:Market commands:")
+    #help_page.register("market my offers", "", "", root=["market", "my"], hidden=True, header=":notebook_with_decorative_cover:Market commands:")
 
-    help_page.register("market", "", "does market stuff, see " + bot.prefix + "help market for commands", root="core", header=":notebook_with_decorative_cover:Market commands:")
-    help_page.register("market price", ["buying|selling", "[item]|[amount]", "[item]"], "information on the current market prices of items", root="market")
+    help_page.register("market", "", "does market stuff, see **%p%help market** for commands", root="core", header=":notebook_with_decorative_cover:Market commands:")
+    help_page.register("market price", "", "information on the current market prices of items, see **%p%help market price**", root="market", header=":notebook_with_decorative_cover:Market price commands")
+    help_page.register("market price buying", "[item] | [amount] [item]", "tells you the current minimum price to buy an item", root=["market", "price"])
+    help_page.register("market price selling", "[item] | [amount] [item]", "tells you the current maximum price the item is being bought at", root=["market", "price"])
+    help_page.register("market amount", "", "information on the amount of items being sold or offered on the market, see **%p%help market amount**", root="market", header=":notebook_with_decorative_cover:Market amount commands:")
+    help_page.register("market amount selling", "[item] [price] [exact]", "how much of the item is being sold, if a price is given it's amount<=price, if exact is yes it's amount=price", root="market amount")
+    help_page.register("market amount buying", "[item] [price] [exact]", "how much of the item is being sold, if a price is given it's amount>=price, if exact is yes it's amount=price", root="market amount")
+    help_page.register("market sell", "[amount] [item] [price]", "sells an amount of that item at the given price per unit (eg 10 rock $5 sells 10 rocks at $5 each)", root="market")
+    help_page.register("market buy", "[amount] [item]", "buys an amount of that item at the minimum possible price from the market", root="market")
+    help_page.register("market offer", "[amount] [item] [price]", "puts an offer on the market for buying an amount of that item at or below a given price", root="market")
+    help_page.register("market my", "", "commands for looking at information about your sales and offers, set **" + bot.prefix + "help market my**", root="market", header=":notebook_with_decorative_cover:Market my commands:")
+    help_page.register("market my offers", "[page]", "shows you the page of your current offers list", root="market my")
+    help_page.register("market my offers get", "[item] [page]", "generates a list of offers based on the criteria (if item is not given it's a list of all your offers)", root="market my")
+    help_page.register("market my offers remove", "[id]", "removes the offer with the given id from the market", root="market my")
+    help_page.register("market my sales", "[page]", "shows you the page of your current sales list", root="market my")
+    help_page.register("market my sales get", "[item] [page]", "generates a list of sales based on the criteria (if item is not given it's a list of all your sales)", root="market my")
+    help_page.register("market my sales remove", "[id]", "removes the sale with the given id from the market", root="market my")
+    help_page.register("market refresh", "[item]", "refreshes the market information on a certain item, or all items if no item is given", root="market")
 
-    help_page.register("trade", "", "does trading stuff, see " + bot.prefix + "help trade for commands", root="core", header=":notebook_with_decorative_cover:Trading commands:")
+    help_page.register("trade", "", "does trading stuff, see **" + bot.prefix + "help trade** for commands", root="core", header=":notebook_with_decorative_cover:Trading commands:")
+    help_page.register("trade offer", "[user] {your items} for {their items}", "see **" + bot.prefix + "help trade offer** for mor information", root="trade", header=":notebook_with_decorative_cover:Trade offer commands:")
+    help_page.register("trade offer", "[user] {your items} for {their items}", ["{items} is a list seperated , where each item is either:",
+                                                                                "                                                  an item (amount item_type)",
+                                                                                "                                                  money ($amount)",
+                                                                                "                                                  a factory ({factory_name})",
+                                                                                "                                             eg: trade offer @example 10 rock, 20 wool, {factory_2} for 1000 log, $10000"], root="trade offer")
+    help_page.register("trade my sent", "[user]", "shows you a list of the people you've sent offers to, if user is given shows the offer you sent them", root="trade")
+    help_page.register("trade my received", "[user]", "shows you a list of offers you've been sent, if user is given shows you the offer they have sent you", root="trade")
+    help_page.register("trade accept", "[user]", "accepts an offer from that user", root="trade")
+    help_page.register("trade decline", "[user]", "declines an offer from that user", root="trade")
+    help_page.register("trade cancel", "[user]", "cancels an offer to that user", root="trade")
 
+    help_page.register("factory", "", "does factory stuff, see **" + bot.prefix + "help factory** for commands", root="core", header=":notebook_with_decorative_cover:Factory commands:")
+    help_page.register("factory my", "", "commands for looking at information about your factories", root="factory", header=":notebook_with_decorative_cover:Factory my commands:")
+    help_page.register("factory my list", "", "lists the names of your factories", root="factory my")
+    help_page.register("factory my change", "[old_name] to [new_name]", "changes the name of one of your factories", root="factory my")
+    help_page.register("factory my info", "[factory_name]", "shows some information about that factory", root="factory my")
+    help_page.register("factory auto", "", "commands for changing the automation of your factory", root="factory", header=":notebook_with_decorative_cover:Factory auto commands:")
+    help_page.register("factory auto on", "[factory_name]", "turns the automated production for your factory on", root="factory auto")
+    help_page.register("factory auto off", "[factory_name]", "turns the automated production for your factory off", root="factory auto")
+    help_page.register("factory auto restart", "[factory_name]", "restars the automation production, useful if you upgrade your factory", root="factory restart")
+    help_page.register("factory upgrades", "[upgrade_type] [level]", "shows information about the different factory upgrades, both parameters are optional", root="factory")
+    help_page.register("factory upgrade", "[factory_name] [upgrade_type] with {optional items}", "upgrades a factory, {optional item} = item1, item1 etc", root="factory")
+
+    help_page.register("exchange", "[amount] [item]", "exchanges x of an item for $x", root="core")
     help_page.register("balance", "", "checks your balance", root="core")
     help_page.register("balance history", "[page]", "shows your transaction history", root="core")
     help_page.register("inv", "[item]", "tells you have much of an item you have, if no item given tells you what items you have", root="core")
+    help_page.register("items", "", "information about item types", root="core", header=":notebook_with_decorative_cover:Item commands:")
+    help_page.register("items get", "[item]", "shows the item type for that item", root="items")
+    help_page.register("items list", "[item_type]", "lists the items with that item type", root="items")
 
     help_page.register("register", "", "registers to play the game and sets you up with your first factory", root="misc")
-    help_page.register("join [invite_link]", "", "Joins a server, or creates a bot invite link if no invite link is given", root="misc")
-    help_page.register("ticket", "", "commands for sending a help ticket to the admins", root="misc")
+    help_page.register("unregister", "", "unregisters you, removing all trace of you from the market", root="misc")
+    help_page.register("join", "", "Gives you a bot invite link so you can get " + bot.name + " in your servers", root="misc")
+    help_page.register("ticket", "message|request|help|error|ban [message]", "commands for sending a ticket to the admins", root="misc")
     help_page.register("server", "", "gives you an invite link to the offical MarketBot server", root="misc")
     help_page.register("ping", "", "tells you the bots ping to your server", root="misc")
 
+    help_page.register("close", "", "saves and closes the bot (doesn't always close it, not very reliable)", root="help admin")
     help_page.register("backup", "", "commands for backup bot data", root="help admin")
     help_page.register("save", "", "manually save the bot data", root="admin")
     help_page.register("admin", "[code]", "manually perform some code", root="admin")
     help_page.register("lookup", "", "commands for looking up users and servers, lookup_all for returning all results completley", root="admin")
-    help_page.register("ticket", "read|respond", "commands for reading and responding to tickets", root="admin")
+    help_page.register("ticket", "*ban|*unban [user]", "bans or unbans a user from sending tickets (except to the ban section)", root="admin")
+    help_page.register("items list", "", "lists all registered items", root="admin")
+    help_page.register("items set", "[item] [item_type]", "sets the item type for that item", root="admin")
+    help_page.register("items del", "[item]", "deletes the item type for that item", root="admin")
 
     help_page.register("help core", "", "see list of core commands")
     help_page.register("help misc", "", "see list of miscellaneous commands")
@@ -728,6 +1156,11 @@ def setup(bot, help_page, filename):
     bot.register_command("join", market_handle, market_handle_l)
     bot.register_command("ticket", market_handle, market_handle_l)
     bot.register_command("register", market_handle, market_handle_l)
+    bot.register_command("unregister", market_handle, market_handle_l)
     bot.register_command("server", market_handle, market_handle_l)
+    bot.register_command("factory", market_handle, market_handle_l)
+    bot.register_command("items", market_handle, market_handle_l)
+    bot.register_command("close", market_handle, market_handle_l)
+    bot.register_command("exchange", market_handle, market_handle_l)
 
     print("Registered commands")

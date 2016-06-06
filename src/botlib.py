@@ -1,3 +1,4 @@
+import traceback
 from os import listdir
 from os.path import isfile, join
 
@@ -9,12 +10,14 @@ def default_restart():
 
 class Bot:
     def __init__(self, client):
-        self.name = "YoyoBot2"
-        self.prefix = "€"
+        self.name = "ExampleBot"
+        self.prefix = "?!"
         self.ping_message = "Pong!"
         self.ping_start = 0
-        self.pages = 5
+        self.pages = 7
         self.client = client
+        self.version = "1.0.0"
+        self.help_page = None
         # command: [command_handler, length_handler]
         self.commands = {}
         # bindname: [ root_command, {more_binds} }
@@ -122,26 +125,35 @@ class Role:
                     result = False
             return result
 
-#help.register(["command", "subcommand"], "command for doing stuff"
 class HelpPage:
-    # header is an array of strings
+    # header is an array of strings or a single string, shown at the beginning of the help page.
     def __init__(self, header):
         if type(header) is str:
             header = [header]
+        # shown at the start of the help page
         self.header = header
-        # [ commandname: [descritption, helppage]
+        # { commandname: [params, descritption, helppage, hidden] }
         self.commands = {}
+        # used to determine the order in which the commands were registered so it can reliably print them in the corrent order
         self.commands["__ordering__"] = []
+        # number showing how many commands are registered with this help page (or any of it's child pages)
+        self.registered_commands = 0
 
-    # command is the command your adding, for example command subcommand
-    def register(self, command, params, description, root=[], help=None, silent=False, header=None, header_append=False):
-        if header is None:
-            header = self.header
-        else:
-            if type(header) is str:
-                header = [header]
-            if header_append:
-                header = self.header + header
+    # registers a command to the help page;
+    #    command is the command as a string that you're registering
+    #    params are the parameters of the command, this can be a string seperated by " ", a string without " " or a list of strings
+    #    description is the description of the commands, this can be a single string or a list of strings
+    #    root is optional; It is the "root" command as a string seperated by " ", a string without " " or a list os strings
+    #                      If root is not given there is no root and it will show up at the default help page
+    #    hidden is optional; It determines if this command will be hidden from the help pages
+    #                        If hidden is not given it defaults to False
+    #    header is optional; It is the text that shows at the beginning of the help page (as a string or a list of strings)
+    #                        If no header is given it uses the default help page's
+    #    header_append is optional; It determines if the header given will override the default header or add to it
+    #                               If header_append is not given it defaults to False
+    #
+    def register(self, command, params, description, root=[], hidden=False, header=None, header_append=False):
+        self.registered_commands += 1
         if type(params) is str:
             if " " in params:
                 params = params.split(" ")
@@ -155,23 +167,38 @@ class HelpPage:
             else:
                 root = [root]
         help = self
+        roots_done = []
         if len(root) > 0:
             for i in range(len(root)):
-                if root[i] in help.commands:
-                    help = help.commands[root[i]][2]
+                roots_done.append(root[i])
+                raw_root = " ".join(roots_done)
+                if raw_root in help.commands:
+                    help = help.commands[raw_root][2]
                 else:
                     help = None
                     break
         if help is not None:
-            help.commands[command] = [params, description, HelpPage(header), silent]
+            if header is None:
+                header = self.header
+            else:
+                if type(header) is str:
+                    header = [header]
+                if header_append:
+                    header = help.header + header
+            help.commands[command] = [params, description, HelpPage(header), hidden]
             help.commands["__ordering__"].append(command)
 
-    def join(self, prefix, lines, suffix):
+    # simple join helper-function
+    def _join(self, prefix, lines, suffix):
         result = ""
         for line in lines:
             result = result + prefix + line + suffix
         return result
 
+    # returns the lines of help for the given command
+    #       prefix is the prefix for the bots commands
+    #       command is the command passed to the the help function split by " " (ignoring the help, so if you do !help page1 command would equal ["page1"])
+    #       command_head is an internal parameter, it determines what gets put in front of the command.
     def get(self, bot, command=[], command_head=None):
         try:
             if command_head is None:
@@ -180,25 +207,28 @@ class HelpPage:
                 elif not self.commands[command[0]][3]:
                     command_head = " ".join(command) + " "
             if len(command) == 0:
-                lines = self.join(" ", self.header, "\n")
+                lines = self._join(" ", self.header, "\n")
                 for command in self.commands["__ordering__"]:
                     info = self.commands[command]
                     if not info[3]:
-                        start = "         >>** " + bot.prefix + command_head + command + "** " + " ".join(info[0]) + " - "
+                        start = "         >>** " + bot.prefix + command + "** " + " ".join(info[0]) + " - "
                         spacing = " " * len(start)
                         start += info[1][0] + "\n"
                         if len(info[1]) > 1:
-                            for i in range(1, len(info[1])):
-                                start += self.join(spacing, info[1][i], "\n")
+                            start += self._join(spacing, info[1][1:], "\n")
                         lines += start
                 lines = lines.replace("%b%", bot.name).replace("%p%", bot.prefix)
                 return lines
             elif command[0] in self.commands:
+
                 help_page = self.commands[command[0]][2]
+                if len(command) > 1:
+                    command[1] = command[0] + " " + command[1]
                 return help_page.get(bot, command[1:], command_head)
         except (IndexError, KeyError, ValueError):
             pass
-        return self.join(" ", self.header, "\n") + "         >> No commands found!"
+        # If no help page could be found, return a message saying so.
+        return self._join(" ", self.header, "\n") + "         >> No commands found!"
 
 
 def load_plugins(bot, help_page):
