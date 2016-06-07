@@ -18,12 +18,43 @@ class Factory:
                 "base": [100, 100],
                 "__RESULT__": ['self.auto_produce = self.get_amount(self.market.factories["produce_delay"])',
                                'self.auto_efficieny = 0.8'],
-                "__DESC__": "Allows your factory to produce automatically with 80% efficiency"
+                "__DESC__": "Allows your factory to produce automatically with 80% efficiency, costs 100 of 2 different base items"
             },
             {
                 "base": [150, 150],
                 "__RESULT__": ['self.start_auto_produce(self.market.factories["produce_delay"], eff=0.85)'],
-                "__DESC__": "Allows your factory to produce items automatically with 85% efficiency"
+                "__DESC__": "Allows your factory to produce items automatically with 85% efficiency, costs 100 of 2 different base items"
+            }
+        ],
+        "time": [
+            "Upgrades how fast your factory produces things",
+            {
+                "base": [50, 50, 50],
+                "__RESULT__": ['self.time_scaling = 7'],
+                "__DESC__": "Allows your factory to produce more items faster, costs 50 of 3 different base items"
+            },
+            {
+                "base": [200, 100, 100],
+                "__RESULT__": ['self.time_scaling = 0'],
+                "__DESC__": "Allows your factory to produce items faster, costs 200 of one base item and 100 of two others"
+            }
+        ],
+        "capacity":[
+            "Increases the cap on how much your factory can produce at once",
+            {
+                "base": [100],
+                "__RESULT__": ['self.capacity=20'],
+                "__DESC__": "Allows your factory to produce up to 20 items at a time, costs 100 of one base item"
+            },
+            {
+                "base": [500],
+                "__RESULT__": ['self.capacity=45'],
+                "__DESC__": "Allows your factory to produce up to 45 items at a time, costs 500 of one base item"
+            },
+            {
+                "base": [1000],
+                "__RESULT__": ['self.capacity=70'],
+                "__DESC__": "Allows your factory to produce up to 70 items at a time, costs 1000 of one base item"
             }
         ]
     }
@@ -42,6 +73,7 @@ class Factory:
         self.production_start = time.time()
         self.producing = 0
         self.sellable = sellable
+        self.capacity = 20
 
         self.upgrade_levels = {
             "time_scaling": 1,
@@ -168,7 +200,7 @@ class Factory:
         if eff != -1:
             self.auto_efficieny = eff
         self.production_start = time.time()
-        self.auto_produce = math.ceil(self.auto_efficieny * self.get_amount(delay, time_scaling))
+        self.auto_produce = min(self.capacity, math.ceil(self.auto_efficieny * self.get_amount(delay, time_scaling)))
         if self not in self.market.auto_factories:
             self.market.auto_factories.append(self)
         self.producing = 2
@@ -202,6 +234,7 @@ class Factory:
 
     def produce(self, amount):
         if not self.producing:
+            amount = min(amount, self.capacity)
             delay = self.get_time_taken(amount)
             self.production_amount = amount
             self.producing = 1
@@ -330,7 +363,15 @@ class Market:
         self.inventory["save_delay"] = 60 # save every minute
         self.inventory["save_id"] = 0
         self.factories["produce_delay"] = 30
-
+        self.settings = {
+            "ignore_list": [],
+            "cleanup": {},
+            "cleanup_tags": {}
+        }
+        self.games = {
+            "speedtype": {},
+            "hangman": {}
+        }
         self.chests = {}
         self.tags = {}
         self.tags["__tagban__"] = {}
@@ -441,7 +482,7 @@ class Market:
             os.makedirs("data/")
         if not os.path.exists("data/" + dir_suffix):
             os.makedirs("data/" + dir_suffix)
-        to_save = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags"]
+        to_save = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings"]
         for fname in to_save:
             try:
                 data = getattr(self, fname)
@@ -478,7 +519,7 @@ class Market:
         if not os.path.exists("data/"):
             os.makedirs("data/")
         if os.path.exists("data/" + dir_suffix):
-            to_load = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags"]
+            to_load = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings"]
             for fname in to_load:
                 try:
                     file_name = "data/" + dir_suffix + fname + ".json"
@@ -835,13 +876,13 @@ class Market:
                     self.calculate_market_amount(item)
                 for item in self.offers:
                     self.calculate_offer_amount(item)
-                    self.calculate_offer_min_price(item)
+                    self.calculate_offer_max_price(item)
             else:
                 if item in self.market:
                     self.calculate_market_amount(item)
-                    self.calculate_offer_min_price(item)
+                    self.calculate_market_min_price(item)
                 if item in self.offers:
-                    self.calculate_offer_min_price(item)
+                    self.calculate_offer_max_price(item)
                     self.calculate_offer_amount(item)
             return True
         else:
@@ -874,17 +915,17 @@ class Market:
                 if is_number(item_id):
                     self.market[item]["total"] += self.market[item][item_id]["amount"]
 
-    def get_offer_min_price(self, item):
+    def get_offer_max_price(self, item):
         if item in self.offers:
-            return self.offers[item]["min"]
+            return self.offers[item]["max"]
         return -1
 
-    def calculate_offer_min_price(self, item):
+    def calculate_offer_max_price(self, item):
         if item in self.offers:
             for item_id in self.offers[item]:
                 if is_number(item_id):
-                    if self.offers[item][item_id]["price"] < self.offers[item]["min"]:
-                        self.offers[item]["min"] = self.offers[item][item_id]["price"]
+                    if self.offers[item][item_id]["price"] > self.offers[item]["max"]:
+                        self.offers[item]["max"] = self.offers[item][item_id]["price"]
 
     def get_offer_amount(self, item, price=-1, exact=False):
         if item in self.offers:
@@ -894,7 +935,7 @@ class Market:
                 total = 0
                 for item_id in self.offers[item]:
                     if is_number(item_id):
-                        if (self.offers[item][item_id]["price"] == price and exact) or (self.offers[item][item_id]["price"] <= price and not exact):
+                        if (self.offers[item][item_id]["price"] == price and exact) or (self.offers[item][item_id]["price"] >= price and not exact):
                             total += self.offers[item][item_id]["amount"]
                 return total
         return 0
@@ -944,7 +985,7 @@ class Market:
                     obj = self.offers[item][item_id]
                     done = False
                     for i in range(len(ordered_prices)):
-                        if ordered_prices[i]["price"] > obj["price"]:
+                        if ordered_prices[i]["price"] < obj["price"]:
                             new_obj = copy.copy(obj)
                             ordered_prices = ordered_prices[:i] + [new_obj] + ordered_prices[i:]
                             done = True
@@ -1029,15 +1070,15 @@ class Market:
             if item not in self.offers:
                 self.offers[item] = {}
                 self.offers[item]["total"] = 0
-                self.offers[item]["min"] = 0
+                self.offers[item]["max"] = 0
                 self.offers[item]["id_order"] = []
             item_id = self._next_id()
             self.offers[item][item_id] = {"amount": amount, "price": price, "user": user_id, "item": item, "item_id": item_id, "investment": investment}
             self.offers[item]["total"] += amount
             self.offers[item]["id_order"].append(item_id)
             self.give_money(user_id, -investment, "offer investment")
-            if price < self.offers[item]["min"] or self.offers[item]["min"] < 0:
-                self.market[item]["min"] = price
+            if price < self.offers[item]["max"] or self.offers[item]["max"] < 0:
+                self.offers[item]["max"] = price
             return item_id
         return -1
 
@@ -1047,7 +1088,7 @@ class Market:
                 self.give_money(offer["user"], offer["investment"], "offer investment return")
                 del self.offers[offer["item"]][offer["item_id"]]
                 self.calculate_offer_amount(offer["item"])
-                self.calculate_offer_min_price(offer["item"])
+                self.calculate_offer_max_price(offer["item"])
                 return True
         return False
 

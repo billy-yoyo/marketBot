@@ -3,7 +3,6 @@ import discord
 import asyncio
 import time
 
-
 def run(restarter, restart_source=None):
     client = discord.Client()
 
@@ -30,15 +29,28 @@ def run(restarter, restart_source=None):
     @client.event
     @asyncio.coroutine
     def on_message(message):
-        if message.author.id == bot.client.user.id:
-            if message.content == bot.ping_message:
-                yield from bot.client.edit_message(message, "Pong! Took " + str(int((time.time() - bot.ping_start)*1000000)/1000) + " milliseconds")
-            if not message.channel.is_private and not message.content.startswith("~"):
-                yield from asyncio.sleep(60)  # delete messages after 60 seconds
-                if bot.market.running:
-                    yield from client.delete_message(message)
+        if message.channel.is_private and message.author.id in bot.market.games["speedtype"] and bot.market.games["speedtype"][message.author.id].in_progress:
+            yield from bot.market.games["speedtype"][message.author.id].input(message)
         else:
-            yield from bot.run_command(message, test_role)
+            if message.author.id == bot.client.user.id:
+                if message.content == bot.ping_message:
+                    yield from bot.client.edit_message(message, "Pong! Took " + str(int((time.time() - bot.ping_start)*1000000)/1000) + " milliseconds")
+                cleanup = 60
+                if message.channel.is_private:
+                    cleanup = -1
+                elif message.content.startswith("~"):
+                    if message.channel.id in bot.market.settings["cleanup_tags"]:
+                        cleanup = bot.market.settings["cleanup_tags"][message.channel.id]
+                    else:
+                        cleanup = -1
+                elif message.channel.id in bot.market.settings["cleanup"]:
+                    cleanup = bot.market.settings["cleanup"][message.channel.id]
+                if cleanup > 0:
+                    yield from asyncio.sleep(cleanup)  # delete messages after 60 seconds
+                    if bot.market.running:
+                        yield from client.delete_message(message)
+            else:
+                yield from bot.run_command(message, test_role)
 
     print("Creating bot..")
     bot = botlib.Bot(client)

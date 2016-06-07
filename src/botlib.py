@@ -1,4 +1,4 @@
-import traceback
+import time
 from os import listdir
 from os.path import isfile, join
 
@@ -7,6 +7,8 @@ def default_handle(bot, message, command):
 
 def default_restart():
     return
+
+
 
 class Bot:
     def __init__(self, client):
@@ -25,6 +27,23 @@ class Bot:
         self.pings = []
         self.restarter = default_restart
         self.admin_list = []
+        self.cmd_cds = {}
+
+    def get_cooldown(self, user, command):
+        if type(command) is list:
+            command = " ".join(command)
+        if user in self.cmd_cds:
+            cds = self.cmd_cds[user]
+            for cmdcd in self.cds:
+                if command.startswith(cmdcd):
+                    return self.cds[cmdcd] - time.time()
+        return 0
+
+    def cooldown(self, user, command, amount):
+        if not self.is_me(user):
+            if not user in self.cmd_cds:
+                self.cmd_cds[user] = {}
+            self.cmds[user][command] = time.time() + amount
 
     def is_me(self, msg):
         return msg.author.id in self.admin_list
@@ -61,13 +80,14 @@ class Bot:
         return None
 
     def run_command(self, message, role):
-        if message.content.startswith(self.prefix):
-            command = message.content[len(self.prefix):].split(" ")
-            handle = self.handle_command(role, command)
-            if handle is not None:
-                yield from handle(self, message, command)
-                return True
-        return False
+        if not hasattr(self, "market") or (not message.channel.id in self.market.settings["ignore_list"] or message.content == self.prefix + "unignore"):
+            if message.content.startswith(self.prefix):
+                command = message.content[len(self.prefix):].split(" ")
+                handle = self.handle_command(role, command)
+                if handle is not None:
+                    yield from handle(self, message, command)
+                    return True
+            return False
 
 
 class Role:
