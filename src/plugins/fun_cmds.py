@@ -1,8 +1,33 @@
-import traceback, random, asyncio, requests, market
+import traceback, random, asyncio, requests, market, os, aiohttp
+from difflib import SequenceMatcher
+from os import listdir
+from os.path import isfile, join
 
 import requests
 import re
 
+ball_8 = [
+        "It is certain",
+        "It is decidedly so",
+        "Without a doubt",
+        "Yes, definitely",
+        "You may rely on it",
+        "As I see it, yes",
+        "Most likely",
+        "Outlook good",
+        "Yes",
+        "Signs point to yes",
+        "Reply hazy try again",
+        "Ask again later",
+        "Better not tell you now",
+        "Cannot predict now",
+        "Concentrate and ask again",
+        "Don't count on it",
+        "My reply is no",
+        "My sources say no",
+        "Outlook not so good",
+        "Very doubtful"
+    ]
 
 class StrawPoll(object):
     def __init__(self, data = None, url = None):
@@ -265,6 +290,10 @@ def fun_handle(bot, msg, cmd):
                     yield from bot.client.send_message(msg.channel, "You roll a " + str(total))
                 else:
                     yield from bot.client.send_message(msg.channel, "You roll " + ", ".join(results) + " total: " + str(total))
+            elif cmd[0] == "reverse":
+                yield from bot.client.send_message(msg.channel, " ".join(cmd[1:])[::-1])
+            elif cmd[0] == "8ball":
+                yield from bot.client.send_message(msg.channel, ball_8[random.randint(0, len(ball_8)-1)])
             elif cmd[0] == "flip":
                 if random.randint(0, 1) == 0:
                     yield from bot.client.send_message(msg.channel, "It lands on head.")
@@ -427,6 +456,96 @@ def fun_handle(bot, msg, cmd):
                                 yield from bot.client.send_message(msg.channel, "You have already responded!")
                     else:
                         yield from bot.client.send_message(msg.channel, "You are not currently invited to a game!")
+            elif cmd[0] == "riddle":
+                formatting = bot.prefix + "riddle new|giveup|[guess]"
+                if len(cmd) == 1 or (cmd[1] != "new" and cmd[1] != "giveup"):
+                    if msg.channel.id in bot.market.riddles:
+                        formatting = bot.prefix + "riddle guess [guess]"
+                        guess = " ".join(cmd[1:]).replace('"', "").replace(" the ", "").replace(" a ", "")
+                        if guess.startswith("the "):
+                            guess = guess[4:]
+                        if guess.startswith("a "):
+                            guess = guess[2:]
+                        if len(guess) <= 2:
+                            guess = "letter " + guess
+                        answer = bot.market.riddles[msg.channel.id][1]
+                        sqs = SequenceMatcher(None, guess, answer)
+                        n = 0
+                        matching = sqs.get_matching_blocks()
+                        for t in matching:
+                            n += t.size
+                        ratio = n / min(len(answer), len(guess))
+                        print(guess + " : " + answer + " : " + str(ratio))
+                        if ratio > 0.9:
+                            del bot.market.riddles[msg.channel.id]
+                            yield from bot.client.send_message(msg.channel, "Correct! The answer was: " + answer)
+                        elif ratio > 0.8:
+                            del bot.market.riddles[msg.channel.id]
+                            yield from bot.client.send_message(msg.channel, "Almost, the answer was: " + answer)
+                        else:
+                            yield from bot.client.send_message(msg.channel, "Nope, sorry!")
+                    else:
+                        yield from bot.client.send_message(msg.channel,
+                                                           "You don't have a riddle! Use " + bot.prefix + "riddle new to create a new one")
+                else:
+                    if cmd[1] == "new":
+                        if not msg.channel.id in bot.market.riddles:
+                            riddle = bot.riddles[random.randint(0, len(bot.riddles) - 1)]
+                            bot.market.riddles[msg.channel.id] = riddle
+                            yield from bot.client.send_message(msg.channel, riddle[0])
+                        else:
+                            yield from bot.client.send_message(msg.channel, "You already have a riddle: " +
+                                                               bot.market.riddles[msg.channel.id][0])
+                    elif cmd[1] == "giveup":
+                        if msg.channel.id in bot.market.riddles:
+                            formatting = bot.prefix + "riddle giveup"
+                            del bot.market.riddles[msg.channel.id]
+                            yield from bot.client.send_message(msg.channel, "Oh well! Better luck next time :)")
+                        else:
+                            yield from bot.client.send_message(msg.channel,
+                                                               "You don't have a riddle! Use " + bot.prefix + "riddle new to create a new one")
+                    else:
+                        raise IndexError
+            elif cmd[0] == "cat":
+                with aiohttp.Timeout(10):
+                    response = yield from bot.client.session.get("http://random.cat/meow")
+                    data = yield from response.json()
+                    yield from bot.client.send_message(msg.channel, data["file"])
+
+
+            #elif cmd[0] == "profile":
+            #    if len(cmd) > 1 and cmd[1] == "clean":
+            #        if bot.is_me(msg):
+            #            n = profiler.cleanup(bot)
+            #            yield from bot.client.send_message(msg.channel, "Removed " + str(n) + " profile cards.")
+            #        else:
+            #            yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
+            #    else:
+            #        yield from bot.client.send_typing(msg.channel)
+            #        fn = yield from profiler.get_card(bot, msg.author)
+            #        if fn is not None:
+            #            yield from bot.client.send_message(msg.channel, "Profile for <@" + msg.author.id + ">")
+            #            yield from bot.client.send_file(msg.channel, fn)
+            #            bot.cooldown(msg.author.id, "profile", 5)
+            #        else:
+            #            yield from bot.client.send_message(msg.channel, "Failed to create profile card!")
+            #elif cmd[0] == "vs":
+            #    yield from bot.client.send_typing(msg.channel)
+            #    formatting = bot.prefix + "vs create [width] [height] [code]"
+            #    width = min(500, int(cmd[1]))
+            #    height = min(500, int(cmd[2]))
+            #    rawcode = " ".join(cmd[3:]).replace("```", "")
+            #    scriptid = str(random.randint(100000, 999999))
+            #    filename = "scripts/" + scriptid + ".vec"
+            #    f = open(filename, "w")
+            #    f.write(rawcode)
+            #    f.close()
+            #    surf = vectorscript.render_file(filename, width, height, [])
+            #    os.remove(filename)
+            #    filename = "scripts/" + scriptid + ".png"
+            #    pygame.image.save(surf, filename)
+            #    yield from bot.client.send_file(msg.channel, filename)
+            #    os.remove(filename)
     except (IndexError, ValueError, KeyError):
         yield from bot.client.send_message(msg.channel, formatting)
         traceback.print_exc()
@@ -444,11 +563,30 @@ def setup(bot, help_page, filename):
     for line in f:
         bot.word_list += line.replace("\n", "").split(";")
     f.close()
+    f = open("riddles.txt", "r")
+    spl = f.read().split(";;")
+    bot.riddles = []
+    for riddle in spl:
+        bot.riddles.append(riddle.replace('"', "").split("::"))
+    print(len(bot.riddles))
 
+    #onlyfiles = [f for f in listdir("card_img/") if isfile(join("card_img/", f))]
+    #for filename in onlyfiles:
+    #    if filename.endswith(".png"):
+    #        bot.imgs[filename[:-4]] = pygame.image.load("card_img/" + filename)
+
+    bot.register_command("8ball", fun_handle, fun_handle_l)
     bot.register_command("roll", fun_handle, fun_handle_l)
+    bot.register_command("word", fun_handle, fun_handle_l)
+    bot.register_command("flip", fun_handle, fun_handle_l)
     bot.register_command("speedtype", fun_handle, fun_handle_l)
     bot.register_command("xkcd", fun_handle, fun_handle_l)
     bot.register_command("candh", fun_handle, fun_handle_l)
     bot.register_command("hb", fun_handle, fun_handle_l)
     bot.register_command("hangman", fun_handle, fun_handle_l)
     bot.register_command("strawpoll", fun_handle, fun_handle_l)
+    #ot.register_command("profile", fun_handle, fun_handle_l)
+    #bot.register_command("vs", fun_handle, fun_handle_l)
+    bot.register_command("riddle", fun_handle, fun_handle_l)
+    bot.register_command("reverse", fun_handle, fun_handle_l)
+    bot.register_command("cat", fun_handle, fun_handle_l)

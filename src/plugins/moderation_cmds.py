@@ -90,6 +90,13 @@ def moder_handle(bot, msg, cmd):
                         raise IndexError
                 else:
                     yield from bot.client.send_message(msg.channel, "You don't have permission to use that command!")
+            elif cmd[0] == "prefix":
+                if bot.is_me(msg) or msg.channel.permissions_for(msg.author).manage_messages:
+                    prefix = " ".join(cmd[1:])
+                    bot.market.settings["prefix"][msg.channel.id] = prefix
+                    yield from bot.client.send_message(msg.channel, "Changed the bot's prefix to " + prefix + " for this channel")
+                else:
+                    yield from bot.client.send_message(msg.channel, "You don't have permission to use that command!")
             elif cmd[0] == "ignore":
                 if bot.is_me(msg) or msg.channel.permissions_for(msg.author).manage_messages:
                     if not msg.channel.id in bot.market.settings["ignore_list"]:
@@ -138,6 +145,7 @@ def moder_handle_l(cmd):
 
 def setup(bot, help_page, filename):
     bot.register_command("purge", moder_handle, moder_handle_l)
+    bot.register_command("prefix", moder_handle, moder_handle_l)
     bot.register_command("ignore", moder_handle, moder_handle_l)
     bot.register_command("unignore", moder_handle, moder_handle_l)
     bot.register_command("cleanup", moder_handle, moder_handle_l)

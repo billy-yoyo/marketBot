@@ -25,32 +25,37 @@ def run(restarter, restart_source=None):
             print('Confirming successful restart.')
             yield from client.send_message(restart_source.channel, ">>> Restart Complete <<<")
         print('Done!')
+        bot.setup = True
 
     @client.event
     @asyncio.coroutine
     def on_message(message):
-        if message.channel.is_private and message.author.id in bot.market.games["speedtype"] and bot.market.games["speedtype"][message.author.id].in_progress:
-            yield from bot.market.games["speedtype"][message.author.id].input(message)
-        else:
-            if message.author.id == bot.client.user.id:
-                if message.content == bot.ping_message:
-                    yield from bot.client.edit_message(message, "Pong! Took " + str(int((time.time() - bot.ping_start)*1000000)/1000) + " milliseconds")
-                cleanup = 60
-                if message.channel.is_private:
-                    cleanup = -1
-                elif message.content.startswith("~"):
-                    if message.channel.id in bot.market.settings["cleanup_tags"]:
-                        cleanup = bot.market.settings["cleanup_tags"][message.channel.id]
-                    else:
-                        cleanup = -1
-                elif message.channel.id in bot.market.settings["cleanup"]:
-                    cleanup = bot.market.settings["cleanup"][message.channel.id]
-                if cleanup > 0:
-                    yield from asyncio.sleep(cleanup)  # delete messages after 60 seconds
-                    if bot.market.running:
-                        yield from client.delete_message(message)
+        if bot.setup:
+            if message.channel.is_private and message.author.id in bot.market.games["speedtype"] and bot.market.games["speedtype"][message.author.id].in_progress:
+                yield from bot.market.games["speedtype"][message.author.id].input(message)
             else:
-                yield from bot.run_command(message, test_role)
+                if message.author.id == bot.client.user.id:
+                    if message.content == bot.ping_message:
+                        yield from bot.client.edit_message(message, "Pong! Took " + str(int((time.time() - bot.ping_start)*1000000)/1000) + " milliseconds")
+                    cleanup = 60
+                    if message.channel.is_private:
+                        cleanup = -1
+                    elif message.content.startswith("~"):
+                        if message.channel.id in bot.market.settings["cleanup_tags"]:
+                            cleanup = bot.market.settings["cleanup_tags"][message.channel.id]
+                        else:
+                            cleanup = -1
+                    elif message.channel.id in bot.market.settings["cleanup"]:
+                        cleanup = bot.market.settings["cleanup"][message.channel.id]
+                    if cleanup > 0:
+                        yield from asyncio.sleep(cleanup)  # delete messages after 60 seconds
+                        if bot.market.running:
+                            yield from client.delete_message(message)
+                elif not message.author.bot:
+                    bot.prefix = bot.market.get_prefix(bot, message)
+                    yield from bot.run_command(message, test_role)
+                    yield from bot.market.check_reminders(bot)
+            yield from bot.update_status(message.author.name)
 
     print("Creating bot..")
     bot = botlib.Bot(client)
@@ -63,7 +68,7 @@ def run(restarter, restart_source=None):
     bot.lookup_enabled = True
     bot.version = "0.1.0"
     bot.register_command("help", help_handle, help_length_handle)
-    bot.help_page = botlib.HelpPage(":notebook_with_decorative_cover:MarketBot help homepage:")
+    bot.help_page = botlib.HelpPage(":notebook_with_decorative_cover:MarketBot help homepage: (Note: command prefixs are channel specific, prefix isn't required when PMing the bot)")
     test_role = botlib.Role(all=True)
     print("Finding bot token...")
     token = None

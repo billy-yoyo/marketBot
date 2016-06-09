@@ -264,16 +264,36 @@ def market_handle(bot, msg, cmd):
             elif cmd[0] == "save":
                 yield from bot.client.send_message(msg.channel, ">>> Saving <<<")
                 bot.market.save()
+            elif cmd[0] == "avatar":
+                formatting = bot.prefix + "avatar <filename> - set the avatar"
+                if bot.is_me(msg):
+                    try:
+                        f = open("card_img/"+cmd[1], "rb")
+                        yield from bot.client.edit_profile(avatar=f.read())
+                        f.close()
+                        yield from bot.client.send_message(msg.channel, "Avatar changed.")
+                    except:
+                        traceback.print_exc()
+                        yield from bot.client.send_message(msg.channel, "Failed to change avatar.")
+                else:
+                    yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
             elif cmd[0] == "admin":
                 formatting = bot.prefix + "admin <command> - run an admin command"
                 if bot.is_me(msg):
-                    command = " ".join(cmd[1:])
+                    commands = " ".join(cmd[1:])
                     for mention in msg.mentions:
-                        command = command.replace("<@" + mention.id + ">", '"' + mention.id + '"')
+                        commands = commands.replace("<@" + mention.id + ">", '"' + mention.id + '"')
                     try:
-                        eval(command)
+                        for command in commands.split(";;"):
+                            if command.startswith("yield from"):
+                                yield from eval(command[10:])
+                            else:
+                                eval(command)
                         yield from bot.client.send_message(msg.channel, "Successfully executed command.")
                     except:
+                        print("[ADMIN COMMAND ERROR]")
+                        traceback.print_exc()
+                        print("[ADMIN COMMAND ERROR]")
                         yield from bot.client.send_message(msg.channel, "Failed.")
                 else:
                     yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
@@ -864,6 +884,44 @@ def market_handle(bot, msg, cmd):
                                 yield from bot.client.send_message(msg.channel, ":factory: Invalid level, must be from 1 to " + str(len(market.Factory.FACTORY_COSTS[name])-1) + " (inclusive)")
                         else:
                             yield from bot.client.send_message(msg.channel, ":factory: " + name + " was not recognised as a type of upgrade, see " + bot.prefix + "factory upgrades")
+                elif cmd[1] == "factories":
+                    formatting = bot.prefix + "factory factories [itemtype]"
+                    if len(cmd) == 2:
+                        yield from bot.client.send_message(msg.channel, ":factory: Factories can be created for the following item types: " + ", ".join(market.Factory.FACTORY_CONSTUCT_TYPES))
+                    else:
+                        itemtype = cmd[2]
+                        if itemtype in market.Factory.FACTORY_CONSTUCT_COSTS:
+                            cost_type = market.Factory.FACTORY_CONSTUCT_COSTS[itemtype]["type"]
+                            cost = market.Factory.FACTORY_CONSTUCT_COSTS[itemtype]["cost"]
+                            amount = market.Factory.FACTORY_CONSTUCT_COSTS[itemtype]["amount"]
+                            yield from bot.client.send_message(msg.channel, ":factory: To create a " + itemtype + " factory you need " + str(cost) + " of " + str(amount) + " " + cost_type + " resources")
+                        else:
+                            yield from bot.client.send_message(msg.channel, ":factory: Cannot create factories for item type '" + itemtype + "'")
+                elif cmd[1] == "create":
+                    formatting = bot.prefix + "factory create [item] with {optional items} :: {optional items} = item_name, item_name and item_name etc."
+                    spl1 = " ".join(cmd[2:]).split(" with ")
+                    spl3 = spl1[1].replace("and", ",").replace(" ", "").split(",")
+                    item = spl1[0]
+                    mats = []
+                    for mat in spl3:
+                        if mat in mats:
+                            yield from bot.client.send_message(msg.channel, ":factory: You can't use the same item more than once!")
+                            return
+                        else:
+                            mats.append(mat)
+                    result = market.Factory.construct(bot.market, item, msg.author.id, mats)
+                    if result > 100:
+                        yield from bot.client.send_message(msg.channel, ":factory: Factory created with ID " + result)
+                    elif result == market.Factory.CONSTRUCT_INVALID_ITEMS:
+                        yield from bot.client.send_message(msg.channel, ":factory: One or more of the items you listed is not of the required item type!")
+                    elif result == market.Factory.CONSTRUCT_NOT_ENOUGH_MATS:
+                        yield from bot.client.send_message(msg.channel, ":factory: Invalid amount of mats given, you gave " + str(len(mats)) + ", " + str(market.Factory.FACTORY_CONSTUCT_COSTS[bot.market.get_item_type(item)]["amount"]) + " are required")
+                    elif result == market.Factory.CONSTRUCT_NOT_ENOUGH_INVENTORY:
+                        yield from bot.client.send_message(msg.channel, ":factory: You don't have enough of those items to create the factory!")
+                    elif result == market.Factory.CONSTRUCT_INVALID_ITEMTYPE:
+                        yield from bot.client.send_message(msg.channel, ":factory: Invalid item, please see " + bot.prefix + "factory factories for a list of valid item types (see " + bot.prefix + "items list [itemtype] for items of that type)")
+                    else:
+                        yield from bot.client.send_message(msg.channel, ":factory: Unknown error returned [ERROR: " + str(result) + "], please report this to the admins using " + bot.prefix + "ticket error [message]")
                 elif cmd[1] == "upgrade":
                     formatting = bot.prefix + "factory upgrade [factory_name] [upgrade_type] with {optional items} :: {optional items} = item_name, item_name and item_name etc."
                     spl1 = " ".join(cmd[2:]).split(" with ")
@@ -876,7 +934,11 @@ def market_handle(bot, msg, cmd):
                         item_type = bot.market.get_item_type(item_name)
                         if item_type not in mats:
                             mats[item_type] = []
-                        mats[item_type].append(item_name)
+                        if item_name in mats[item_type]:
+                            yield from bot.client.send_message(msg.channel, ":factory: You can't use the same item more than once!")
+                            return
+                        else:
+                            mats[item_type].append(item_name)
                     factory = bot.market.get_factory(msg.author.id, name)
                     if factory is not None:
                         result = factory.upgrade(upgrade_type, mats)
@@ -1043,6 +1105,7 @@ def market_handle(bot, msg, cmd):
                 else:
                     yield from bot.client.send_message(msg.channel, "Only the admin can use that command!")
             elif cmd[0] == "achiev":
+                formatting = bot.prefix + "achiev mute|unmute|info"
                 if cmd[1] == "mute":
                     if msg.author.id not in bot.market.achievs["__mute__"]:
                         bot.market.achievs["__mute__"].append(msg.author.id)
@@ -1174,7 +1237,7 @@ def setup(bot, help_page, filename):
     bot.market = market.Market()
     print("Created market")
 
-    help_page.register("core", "", "", hidden=True, header=":notebook_with_decorative_cover:Core commands:")
+    help_page.register("core", "", "", hidden=True, header=[":notebook_with_decorative_cover:Core commands:", ":notebook_with_decorative_cover: Please note these commands are in beta and may fail sometimes, if they do please send me a ticket using %p%ticket error [message]"])
     help_page.register("misc", "", "", hidden=True, header=":notebook_with_decorative_cover:Miscellaneous commands:")
     help_page.register("admin", "", "", hidden=True, header=":notebook_with_decorative_cover:Admin commands:")
     help_page.register("market", "", "", hidden=True, header=":notebook_with_decorative_cover:Market commands:")
@@ -1187,6 +1250,7 @@ def setup(bot, help_page, filename):
     help_page.register("util", "", "", hidden=True, header=":notebook_with_decorative_cover:Utility commands:")
     help_page.register("speedtype", "", "", hidden=True, header=":notebook_with_decorative_cover:Speed typing commands:")
     help_page.register("tag", "", "", hidden=True, header=":notebook_with_decorative_cover:Tag commands:")
+    help_page.register("remindme", "", "", hidden=True, header=":notebook_with_decorative_cover:Remindme time args:")
     help_page.register("hangman", "", "", hidden=True, header=":notebook_with_decorative_cover:Hangman commands:")
     help_page.register("cleanup", "", "", hidden=True, header=[":notebook_with_decorative_cover:Cleanup commands:", ":notebook_with_decorative_cover:  Note: (P1) means the command requires the 'Manage Messages' permission"])
     help_page.register("purge-args", "", "", hidden=True, header=[":notebook_with_decorative_cover:Purge arguments:", ":notebook_with_decorative_cover: (n-c-s) means not-case-sensitive"])
@@ -1201,7 +1265,7 @@ def setup(bot, help_page, filename):
     help_page.register("market sell", "[amount] [item] [price]", "sells an amount of that item at the given price per unit (eg 10 rock $5 sells 10 rocks at $5 each)", root="market")
     help_page.register("market buy", "[amount] [item]", "buys an amount of that item at the minimum possible price from the market", root="market")
     help_page.register("market offer", "[amount] [item] [price]", "puts an offer on the market for buying an amount of that item at or below a given price", root="market")
-    help_page.register("market my", "", "commands for looking at information about your sales and offers, set **" + bot.prefix + "help market my**", root="market", header=":notebook_with_decorative_cover:Market my commands:")
+    help_page.register("market my", "", "commands for looking at information about your sales and offers, set **%p%help market my**", root="market", header=":notebook_with_decorative_cover:Market my commands:")
     help_page.register("market my offers", "[page]", "shows you the page of your current offers list", root="market my")
     help_page.register("market my offers get", "[item] [page]", "generates a list of offers based on the criteria (if item is not given it's a list of all your offers)", root="market my")
     help_page.register("market my offers remove", "[id]", "removes the offer with the given id from the market", root="market my")
@@ -1210,8 +1274,8 @@ def setup(bot, help_page, filename):
     help_page.register("market my sales remove", "[id]", "removes the sale with the given id from the market", root="market my")
     help_page.register("market refresh", "[item]", "refreshes the market information on a certain item, or all items if no item is given", root="market")
 
-    help_page.register("trade", "", "does trading stuff, see **" + bot.prefix + "help trade** for commands", root="core", header=":notebook_with_decorative_cover:Trading commands:")
-    help_page.register("trade offer", "[user] {your items} for {their items}", "see **" + bot.prefix + "help trade offer** for mor information", root="trade", header=":notebook_with_decorative_cover:Trade offer commands:")
+    help_page.register("trade", "", "does trading stuff, see **%p%help trade** for commands", root="core", header=":notebook_with_decorative_cover:Trading commands:")
+    help_page.register("trade offer", "[user] {your items} for {their items}", "see **%p%help trade offer** for mor information", root="trade", header=":notebook_with_decorative_cover:Trade offer commands:")
     help_page.register("trade offer", "[user] {your items} for {their items}", ["{items} is a list seperated , where each item is either:",
                                                                                 "                                                  an item (amount item_type)",
                                                                                 "                                                  money ($amount)",
@@ -1223,7 +1287,7 @@ def setup(bot, help_page, filename):
     help_page.register("trade decline", "[user]", "declines an offer from that user", root="trade")
     help_page.register("trade cancel", "[user]", "cancels an offer to that user", root="trade")
 
-    help_page.register("factory", "", "does factory stuff, see **" + bot.prefix + "help factory** for commands", root="core", header=":notebook_with_decorative_cover:Factory commands:")
+    help_page.register("factory", "", "does factory stuff, see **%p%help factory** for commands", root="core", header=":notebook_with_decorative_cover:Factory commands:")
     help_page.register("factory my", "", "commands for looking at information about your factories", root="factory", header=":notebook_with_decorative_cover:Factory my commands:")
     help_page.register("factory my list", "", "lists the names of your factories", root="factory my")
     help_page.register("factory my change", "[old_name] to [new_name]", "changes the name of one of your factories", root="factory my")
@@ -1234,8 +1298,10 @@ def setup(bot, help_page, filename):
     help_page.register("factory auto restart", "[factory_name]", "restars the automation production, useful if you upgrade your factory", root="factory restart")
     help_page.register("factory upgrades", "[upgrade_type] [level]", "shows information about the different factory upgrades, both parameters are optional", root="factory")
     help_page.register("factory upgrade", "[factory_name] [upgrade_type] with {optional items}", "upgrades a factory, {optional item} = item1, item1 etc", root="factory")
+    help_page.register("factory factories", "[item_type]", "shows how much constructing a factory of that type costs, or a list of item types if none is given", root="factory")
+    help_page.register("factory create", "[item] with {optional item}", "creates a factory that produces wool, {optional items} is the same as in factory upgrade", root="factory")
 
-    help_page.register("chest", "", "commands to do with reward chests, see **" + bot.prefix + "help chest** for commands", root="core", header=":notebook_with_decorative_cover:Chest commands:")
+    help_page.register("chest", "", "commands to do with reward chests, see **%p%help chest** for commands", root="core", header=":notebook_with_decorative_cover:Chest commands:")
     help_page.register("chest list", "", "shows you a list of your chests", root="chest")
     help_page.register("chest open [chest_type]", "", "opens a chest of the given type", root="chest")
     help_page.register("chest daily", "", "claims your daily chest", root="chest")
@@ -1266,26 +1332,44 @@ def setup(bot, help_page, filename):
     help_page.register("items set", "[item] [item_type]", "sets the item type for that item", root="admin")
     help_page.register("items del", "[item]", "deletes the item type for that item", root="admin")
 
+    #help_page.register("profile", "", "shows you your profile card", root="fun")
+    help_page.register("8ball", "[question]", "gives you a reply from the magic 8 ball", root="fun")
     help_page.register("roll", "[amount]", "rolls that amount of dice, one if no amount given", root="fun")
     help_page.register("flip", "", "flips a coin", root="fun")
     help_page.register("xkcd", "[n]", "gives you the xkcd comic with that id, or a random one if n isn't given", root="fun")
     help_page.register("canh", "[n]", "gives you the cyanide and happiness comic with that id, or a random one if n isn't given", root="fun")
     help_page.register("hb", "[suffix]", "gives you the information about the current humble bundle, suffix is a url suffix (optional)", root="fun")
-    help_page.register("speedtype", "", "commands for a speed typing gaming, see **" + bot.prefix + "help speedtype** for information", root="fun")
+    help_page.register("cat", "", "gives you a random cat picture", root="fun")
+    help_page.register("speedtype", "", "commands for a speed typing gaming, see **%p%help speedtype** for information", root="fun")
     help_page.register("speedtype rules", "", "details the rules for the game", root="speedtype")
     help_page.register("speedtype new", "[time] [mentions]", "creates a new game with everyone mentioned, time is the length of the game and defaults to 30secs", root="speedtype")
     help_page.register("speedtype accept", "", "accepts an invite to a game", root="speedtype")
     help_page.register("speedtype decline", "", "declines an invite to a game", root="speedtype")
-    help_page.register("hangman", "", "commands for hangman game, see **" + bot.prefix + "help hangman** for information", root="fun")
+    help_page.register("hangman", "", "commands for hangman game, see **%p%help hangman** for information", root="fun")
     help_page.register("hangman new", "", "creates a new hangman game for the channel", root="hangman")
     help_page.register("hangman end", "", "ends the current hangman game for the channel", root="hangman")
     help_page.register("hangman [guess]", "", "make a guess, can be a letter or a word", root="hangman")
+    #help_page.register("vs", "[width] [height] [code]", "experimental command for creating vector graphics, no documentation on how it works until I finalize it.", root="fun")
+    #help_page.register("vs", "[width] [height] [code]", "experimental command for creating vector graphics, no documentation on how it works until I finalize it.", root="fun")
+    help_page.register("riddle", "", "gives you a riddle, see **%p%help riddle** for more information", root="fun")
+    help_page.register("riddle", "new", "gives you a new riddle, use **%p%riddle [guess]** to make guesses. Riddles are per-channel", root="riddle")
+    help_page.register("riddle", "giveup", "gives up on the channel's current riddle", root="riddle")
 
-    help_page.register("tag", "", "commands for creating text-tags, see **" + bot.prefix + "help tag** for more information", root="util")
+    help_page.register("stats", "", "shows some stats about the bot", root="util")
+    help_page.register("ud", "[search]", "shows the top result of an Urban Dictionary search", root="util")
+    help_page.register("uptime", "", "shows you how long the bots been running for", root="util")
+    help_page.register("motd", "", "shows you the message-of-the-day for the current channel", root="util")
+    help_page.register("remindme", "[messsage] in [time args]", "sends the message to you after the specified amount of time see **%p%help remindme**", root="util")
+    help_page.register("remindme args", "[seconds] seconds [minutes] minutes etc..", "works for weeks, days, hours, minutes & seconds, non-plurals work too", root="remindme")
+    help_page.register("remindme** eg1", "%p%remindme hello world in 10 seconds and 3 minutes**", "sends you 'hello world' after 10 seconds and 3 minutes", root="remindme")
+    help_page.register("remindme** eg2", "%p%remindme example text in 3 weeks 5 days 1 hour", "sends you 'example text' after 3 weeks, 5 days and 1 hour", root="remindme")
+    help_page.register("remindme** eg3", "%p%remindme last example in 5 hours, 10 minutes", "sends you 'last exmaple' after 5 hours and 10 minutes", root="remindme")
+    help_page.register("tag", "", "commands for creating text-tags, see **%p%help tag** for more information", root="util")
     help_page.register("tag \"tag_name\" tag", "", "creates a new tag (tags are channel-specific)", root="tag")
     help_page.register("tag tag_name", "", "pastes that tag in to chat", root="tag")
 
-    help_page.register("purge", "[limit] [args]", "purges the chat for the given args, see **" + bot.prefix + "help purge-args** for details on these args", root="mod")
+    help_page.register("prefix", "[prefix]", "sets the prefix for this channel", root="mod")
+    help_page.register("purge", "[limit] [args]", "purges the chat for the given args, see **%p%help purge-args** for details on these args", root="mod")
     help_page.register("purge-args** user", "%u%username%u%**", "purges all message by users with the name 'username' (n-c-s)", root="purge-args")
     help_page.register("purge-args** not user", "%nu%username%nu%**", "purges all messages by users without the name 'username' (n-c-s)", root="purge-args")
     help_page.register("purge-args** contains", "%c%string%c%**", "purges all messages which contain 'string'", root="purge-args")
@@ -1293,9 +1377,9 @@ def setup(bot, help_page, filename):
     help_page.register("purge-args** doesn't contain", "%nc%string%nc%**", "purges all messages which don't contain 'string'", root="purge-args")
     help_page.register("purge-args** doesn't contain (n-c-s)", "%inc%string%inc%**", "purges all messages which don't contain 'string", root="purge-args")
     help_page.register("purge-args** all", "%all%**", "purges all messages", root="purge-args")
-    help_page.register("purge-args** eg_1", bot.prefix + "purge 50 %nu%user%nu% %nc%save%nc%**", "purge the first 50 messages not by user or that don't contain save", root="purge-args")
-    help_page.register("purge-args** eg_2", bot.prefix + "purge 100 %u%troll%u%**", "purges the first 100 messages by troll", root="purge-args")
-    help_page.register("purge-args** eg_3", bot.prefix + "purge 20 %all%**", "purges the last 20 messages", root="purge-args")
+    help_page.register("purge-args** eg_1", "%p%purge 50 %nu%user%nu% %nc%save%nc%**", "purge the first 50 messages not by user or that don't contain save", root="purge-args")
+    help_page.register("purge-args** eg_2", "%p%purge 100 %u%troll%u%**", "purges the first 100 messages by troll", root="purge-args")
+    help_page.register("purge-args** eg_3", "%p%purge 20 %all%**", "purges the last 20 messages", root="purge-args")
     help_page.register("tag ban|unban", "[mentions]", "bans or unbans all members mentioned from using tags in that channel (P1)", root="mod")
     help_page.register("tag delete", "[tagname]", "deletes that tag name (P1)", root="mod")
     help_page.register("ignore", "", "makes the bot ignore this channel (P1)", root="mod")
@@ -1304,7 +1388,8 @@ def setup(bot, help_page, filename):
     help_page.register("cleanup stop", "", "stops the bot from auto-deleting messages in this channel (P1)", root="cleanup")
     help_page.register("cleanup [delay]", "", "makes the bot auto-delete messages after 'delay' seconds (P1)", root="cleanup")
     help_page.register("cleanup tags stop", "", "stops the bot from auto-deleting tag-messages in this channel (P1)", root="cleanup")
-    help_page.register("cleanup tags [delay]", "", "makes the bot auto-delete tag-messages after 'delay' seconds", root="cleanup")
+    help_page.register("cleanup tags [delay]", "", "makes the bot auto-delete tag-messages after 'delay' seconds (P1)", root="cleanup")
+    help_page.register("motd set [message]", "", "sets the message-of-the-day for the current channel", root="mod")
 
     help_page.register("help core", "", "see list of core commands")
     help_page.register("help misc", "", "see list of miscellaneous commands")
@@ -1341,5 +1426,6 @@ def setup(bot, help_page, filename):
     bot.register_command("achiev", market_handle, market_handle_l)
     bot.register_command("guide", market_handle, market_handle_l)
     bot.register_command("chest", market_handle, market_handle_l)
+    bot.register_command("avatar", market_handle, market_handle_l)
 
     print("Registered commands")

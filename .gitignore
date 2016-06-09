@@ -50,6 +50,7 @@ Temporary Items
 data
 *.txt
 *.json
+*.psd
 __pycache__
 .idea
 .gitattributes.txt

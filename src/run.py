@@ -1,5 +1,6 @@
 import main, importlib
 
+# C:\Python33\python projects\marketBot\src
 
 def restarter():
     print("reloading main.py")

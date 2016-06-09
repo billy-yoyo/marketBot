@@ -1,4 +1,4 @@
-import time
+import time, discord, random
 from os import listdir
 from os.path import isfile, join
 
@@ -8,11 +8,25 @@ def default_handle(bot, message, command):
 def default_restart():
     return
 
-
+statuses = [
+    "with your emotions",
+    "the game",
+    "with a yoyo",
+    "hello world!",
+    "with the market",
+    "with my code",
+    "hide and seek",
+    "with fire",
+    "the field",
+    "the victim",
+    "the long con",
+    "it cool"
+]
 
 class Bot:
     def __init__(self, client):
         self.name = "ExampleBot"
+        self.default_prefix = "m$"
         self.prefix = "?!"
         self.ping_message = "Pong!"
         self.ping_start = 0
@@ -28,6 +42,20 @@ class Bot:
         self.restarter = default_restart
         self.admin_list = []
         self.cmd_cds = {}
+        self.imgs = {}
+        self.start_time = time.time()
+        self.setup = False
+        self.next_status_change = 0
+
+    def update_status(self, user):
+        ctime = time.time()
+        if self.next_status_change <= ctime:
+            #print("status changed to: " + user)
+            self.next_status_change = ctime + 120
+            game = discord.Game()
+            game.name = statuses[random.randint(0, len(statuses)-1)]
+            #print("status changed to: " + game.name)
+            yield from self.client.change_status(game=game)
 
     def get_cooldown(self, user, command):
         if type(command) is list:
@@ -40,13 +68,16 @@ class Bot:
         return 0
 
     def cooldown(self, user, command, amount):
-        if not self.is_me(user):
+        if not self.is_me(user, byid=True):
             if not user in self.cmd_cds:
                 self.cmd_cds[user] = {}
             self.cmds[user][command] = time.time() + amount
 
-    def is_me(self, msg):
-        return msg.author.id in self.admin_list
+    def is_me(self, msg, byid=False):
+        if byid:
+            return msg in self.admin_list
+        else:
+            return msg.author.id in self.admin_list
 
     def call_restart(self):
         self.restarter()
@@ -79,14 +110,27 @@ class Bot:
                 return self.commands[command[0]][0]
         return None
 
+    def mention_to_command(self, message):
+        text = message.content.replace("<@" + message.channel.server.me.id + ">", "")
+        cmds = text.split(" ")
+        while "" in cmds: cmds.remove("")
+        return cmds
+
     def run_command(self, message, role):
-        if not hasattr(self, "market") or (not message.channel.id in self.market.settings["ignore_list"] or message.content == self.prefix + "unignore"):
-            if message.content.startswith(self.prefix):
-                command = message.content[len(self.prefix):].split(" ")
-                handle = self.handle_command(role, command)
-                if handle is not None:
-                    yield from handle(self, message, command)
-                    return True
+        if not message.channel.id in self.market.settings["ignore_list"] or message.content == self.prefix + "unignore":
+            if message.content.startswith(self.prefix) or (not message.channel.is_private and message.channel.server.me in message.mentions) or message.channel.is_private:
+                comamnd = None
+                if message.content.startswith(self.prefix):
+                    command = message.content[len(self.prefix):].split(" ")
+                elif message.channel.is_private:
+                    command = message.content.split(" ")
+                else:
+                    command = self.mention_to_command(message)
+                if command is not None:
+                    handle = self.handle_command(role, command)
+                    if handle is not None:
+                        yield from handle(self, message, command)
+                        return True
             return False
 
 

@@ -1,4 +1,4 @@
-import threading, math, copy, json, os, shutil, datetime, time, traceback, random
+import threading, math, copy, json, os, shutil, datetime, time, traceback, random, discord
 
 def is_number(s):
     try:
@@ -9,7 +9,7 @@ def is_number(s):
 
 class Factory:
     FACTORY_UPGRADES = [
-        "auto"
+        "auto", "time", "capacity"
     ]
     FACTORY_COSTS = {
         "auto": [
@@ -21,22 +21,142 @@ class Factory:
                 "__DESC__": "Allows your factory to produce automatically with 80% efficiency, costs 100 of 2 different base items"
             },
             {
-                "base": [150, 150],
+                "base": [400, 400],
                 "__RESULT__": ['self.start_auto_produce(self.market.factories["produce_delay"], eff=0.85)'],
-                "__DESC__": "Allows your factory to produce items automatically with 85% efficiency, costs 100 of 2 different base items"
+                "__DESC__": "Allows your factory to produce items automatically with 85% efficiency, costs 400 of 2 different base items"
+            },
+            {
+                "base": [1000, 1000],
+                "__RESULT__": ['self.start_auto_produce(self.market.factories["produce_delay"], eff=0.9)'],
+                "__DESC__": "Allows your factory to produce items automatically with 90% efficiency, costs 1000 of 2 different base items"
+            },
+            {
+                "base": [3000, 3000, 1000],
+                "__RESULT__": ['self.start_auto_produce(self.market.factories["produce_delay"], eff=0.95)'],
+                "__DESC__": "Allows your factory to produce items automatically with 95% efficiency, costs 3000 of 2 different base items and 1000 of another"
+            },
+            {
+                "base": [5000, 5000, 2500],
+                "__RESULT__": ['self.start_auto_produce(self.market.factories["produce_delay"], eff=1)'],
+                "__DESC__": "Allows your factory to produce items automatically with 100% efficiency, costs 5000 of 2 different base items and 2500 of another"
+            },
+            {
+                "base": [10000, 10000, 5000],
+                "__RESULT__": ['self.start_auto_produce(self.market.factories["produce_delay"], eff=1.05)'],
+                "__DESC__": "Allows your factory to produce items automatically with 105% efficiency, costs 10,000 of 2 different base items and 5000 of another"
+            },
+            {
+                "base": [50000, 50000, 10000],
+                "__RESULT__": ['self.start_auto_produce(self.market.factories["produce_delay"], eff=1.1)'],
+                "__DESC__": "Allows your factory to produce items automatically with 110% efficiency, costs 50,000 of 2 different base items and 10,000 of another"
+            },
+            {
+                "base": [100000, 100000, 50000],
+                "__RESULT__": ['self.start_auto_produce(self.market.factories["produce_delay"], eff=1.2)'],
+                "__DESC__": "Allows your factory to produce items automatically with 120% efficiency, costs 100,000 of 2 different base items and 50,000 of another"
+            },
+            {
+                "base": [150000, 150000, 75000, 25000],
+                "__RESULT__": ['self.start_auto_produce(self.market.factories["produce_delay"], eff=1.3)'],
+                "__DESC__": "Allows your factory to produce items automatically with 130% efficiency, costs 150,000 of 2 different base items, 75,000 of another and 25,000 of another"
+            },
+            {
+                "base": [300000, 300000, 100000, 100000],
+                "__RESULT__": ['self.start_auto_produce(self.market.factories["produce_delay"], eff=1.4)'],
+                "__DESC__": "Allows your factory to produce items automatically with 140% efficiency, costs 300,000 of 2 different base items and 100,000 of another 2"
+            },
+            {
+                "base": [500000, 500000, 250000, 250000],
+                "__RESULT__": ['self.start_auto_produce(self.market.factories["produce_delay"], eff=1.5)'],
+                "__DESC__": "Allows your factory to produce items automatically with 85% efficiency, costs 500,000 of 2 different base items and 250,000 of another 2"
+            },
+            {
+                "base": [1000000, 1000000, 1000000, 1000000],
+                "__RESULT__": ['self.start_auto_produce(self.market.factories["produce_delay"], eff=1.65)'],
+                "__DESC__": "Allows your factory to produce items automatically with 165% efficiency, costs 1,000,000 of 4 different base items"
+            },
+            {
+                "base": [10000000, 10000000, 10000000, 10000000],
+                "__RESULT__": ['self.start_auto_produce(self.market.factories["produce_delay"], eff=1.8)'],
+                "__DESC__": "Allows your factory to produce items automatically with 180% efficiency, costs 10,000,000 of 4 different base items"
+            },
+            {
+                "base": [1000000000, 1000000000, 1000000000, 1000000000],
+                "__RESULT__": ['self.start_auto_produce(self.market.factories["produce_delay"], eff=2)'],
+                "__DESC__": "Allows your factory to produce items automatically with 200% efficiency, costs 1,000,000,000 of 4 different base items"
             }
         ],
         "time": [
             "Upgrades how fast your factory produces things",
             {
+                "base": [10, 10, 10],
+                "__RESULT__": ['self.time_scaling = 7'],
+                "__DESC__": "Allows your factory to produce items at a rate of ~11/min, costs 10 of 3 different base items"
+            },
+            {
                 "base": [50, 50, 50],
                 "__RESULT__": ['self.time_scaling = 7'],
-                "__DESC__": "Allows your factory to produce more items faster, costs 50 of 3 different base items"
+                "__DESC__": "Allows your factory to produce items at a rate of ~14/min, costs 50 of 3 different base items"
             },
             {
                 "base": [200, 100, 100],
-                "__RESULT__": ['self.time_scaling = 0'],
-                "__DESC__": "Allows your factory to produce items faster, costs 200 of one base item and 100 of two others"
+                "__RESULT__": ['self.time_scaling = 10'],
+                "__DESC__": "Allows your factory to produce items at a rate of ~16/min, costs 200 of one base item and 100 of two others"
+            },
+            {
+                "base": [1000, 500, 500],
+                "__RESULT__": ['self.time_scaling = 13'],
+                "__DESC__": "Allows your factory to produce items at a rate of ~18/min, costs 1000 of one base item and 500 of two others"
+            },
+            {
+                "base": [5000, 1500, 1500],
+                "__RESULT__": ['self.time_scaling = 16'],
+                "__DESC__": "Allows your factory to produce items at a rate of ~20/min, costs 5000 of one base item and 1500 of two others"
+            },
+            {
+                "base": [7500, 3000, 3000],
+                "__RESULT__": ['self.time_scaling = 20'],
+                "__DESC__": "Allows your factory to produce items at a rate of ~22/min, costs 7500 of one base item and 3000 of two others"
+            },
+            {
+                "base": [10000, 5000, 5000],
+                "__RESULT__": ['self.time_scaling = 30'],
+                "__DESC__": "Allows your factory to produce items at a rate of ~25/min, costs 10,000 of one base item and 5000 of two others"
+            },
+            {
+                "base": [25000, 7500, 7500],
+                "__RESULT__": ['self.time_scaling = 40'],
+                "__DESC__": "Allows your factory to produce items at a rate of ~27/min, costs 25,000 of one base item and 7500 of two others"
+            },
+            {
+                "base": [50000, 10000, 10000],
+                "__RESULT__": ['self.time_scaling = 60'],
+                "__DESC__": "Allows your factory to produce items at a rate of ~30/min, costs 50,000 of one base item and 10,000 of two others"
+            },
+            {
+                "base": [100000, 50000, 50000],
+                "__RESULT__": ['self.time_scaling = 75'],
+                "__DESC__": "Allows your factory to produce items at a rate of ~32/min, costs 100,000 of one base item and 50,000 of two others"
+            },
+            {
+                "base": [500000, 100000, 100000],
+                "__RESULT__": ['self.time_scaling = 100'],
+                "__DESC__": "Allows your factory to produce items at a rate of ~34/min, costs 500,000 of one base item and 100,000 of two others"
+            },
+            {
+                "base": [1000000, 500000, 500000],
+                "__RESULT__": ['self.time_scaling = 133'],
+                "__DESC__": "Allows your factory to produce items at a rate of ~36/min, costs 1,000,000 of one base item and 500,000 of two others"
+            },
+            {
+                "base": [2000000, 1000000, 1000000],
+                "__RESULT__": ['self.time_scaling = 166'],
+                "__DESC__": "Allows your factory to produce items at a rate of ~38/min, costs 2,000,000 of one base item and 1,000,000 of two others"
+            },
+            {
+                "base": [10000000, 3000000, 3000000],
+                "__RESULT__": ['self.time_scaling = 250'],
+                "__DESC__": "Allows your factory to produce items at a rate of ~41/min, costs 10,000,000 of one base item and 3,000,000 of two others"
             }
         ],
         "capacity":[
@@ -55,9 +175,62 @@ class Factory:
                 "base": [1000],
                 "__RESULT__": ['self.capacity=70'],
                 "__DESC__": "Allows your factory to produce up to 70 items at a time, costs 1000 of one base item"
+            },
+            {
+                "base": [5000],
+                "__RESULT__": ['self.capacity=85'],
+                "__DESC__": "Allows your factory to produce up to 85 items at a time, costs 5000 of one base item"
+            },
+            {
+                "base": [10000],
+                "__RESULT__": ['self.capacity=100'],
+                "__DESC__": "Allows your factory to produce up to 100 items at a time, costs 10,000 of one base item"
+            },
+            {
+                "base": [25000],
+                "__RESULT__": ['self.capacity=125'],
+                "__DESC__": "Allows your factory to produce up to 125 items at a time, costs 25,000 of one base item"
+            },
+            {
+                "base": [50000],
+                "__RESULT__": ['self.capacity=150'],
+                "__DESC__": "Allows your factory to produce up to 150 items at a time, costs 50,000 of one base item"
+            },
+            {
+                "base": [100000],
+                "__RESULT__": ['self.capacity=175'],
+                "__DESC__": "Allows your factory to produce up to 175 items at a time, costs 100,000 of one base item"
+            },
+            {
+                "base": [200000],
+                "__RESULT__": ['self.capacity=200'],
+                "__DESC__": "Allows your factory to produce up to 200 items at a time, costs 200,000 of one base item"
+            },
+            {
+                "base": [500000],
+                "__RESULT__": ['self.capacity=200'],
+                "__DESC__": "Allows your factory to produce up to 250 items at a time, costs 500,000 of one base item"
             }
         ]
     }
+
+    FACTORY_CONSTUCT_TYPES = [
+        "base"
+    ]
+
+    FACTORY_CONSTUCT_COSTS = {
+        "base": {
+            "type": "base",
+            "cost": 10000,
+            "amount": 2
+        }
+    }
+
+    CONSTRUCT_NOT_ENOUGH_MATS = 0
+    CONSTRUCT_INVALID_ITEMS = 1
+    CONSTRUCT_INVALID_ITEMTYPE = 2
+    CONSTRUCT_NOT_ENOUGH_INVENTORY = 3
+    CONSTRUCT_SUCCESS = 4
 
     def __init__(self, market, user, item, factory_id, sellable=False):
         self.market = market
@@ -95,6 +268,30 @@ class Factory:
         }
 
     @staticmethod
+    def construct(market, item, user, mats):
+        itemtype = market.get_item_type(item)
+        if itemtype in Factory.FACTORY_CONSTUCT_COSTS:
+            cost = Factory.FACTORY_CONSTUCT_COSTS[itemtype]["costs"]
+            it = Factory.FACTORY_CONSTUCT_COSTS[itemtype]["type"]
+            if Factory.FACTORY_CONSTUCT_COSTS[itemtype]["amount"] == len(mats):
+                for item_name in mats:
+                    if market.get_item_type(item_name) != it:
+                        return Factory.CONSTRUCT_INVALID_ITEMS
+                    elif market.get_inventory(user, item_name) < cost:
+                        return Factory.CONSTRUCT_NOT_ENOUGH_INVENTORY
+                for item_name in mats:
+                    market.add_inventory(user, item_name, -cost, "creating " + item + " factory")
+                factory = Factory(market, user, item, market._next_id())
+                if not factory.user in market.factories:
+                    market.factories[factory.user] = {}
+                market.factories[factory.user][factory.id] = factory
+                return factory.id
+            else:
+                return Factory.CONSTRUCT_NOT_ENOUGH_MATS
+        else:
+            return Factory.CONSTRUCT_INVALID_ITEMTYPE
+
+    @staticmethod
     def load_from_json(market, json_data):
         factory = Factory(market, json_data["user"], json_data["item"], json_data["id"])
         factory.time_scale = json_data["time_scale"]
@@ -106,11 +303,12 @@ class Factory:
         factory.sellable = json_data["sellable"]
         if not factory.user in market.factories:
             market.factories[factory.user] = {}
-            market.factories[factory.user][factory.id] = factory
+        market.factories[factory.user][factory.id] = factory
         if factory.producing == 2:
             factory.start_auto_produce(market.factories["produce_delay"])
         else:
             factory.producing = 0
+        return factory
 
     def get_info(self):
         auto_line = "Cannot"
@@ -218,12 +416,12 @@ class Factory:
     def get_amount(self, time_taken, time_scaling=-1):
         if time_scaling < 0:
             time_scaling = self.time_scale
-        return math.floor((time_taken * math.log(time_scaling * 0.95)) / 10)
+        return math.floor((time_taken * math.log(time_scaling * 0.95)) / 8)
 
     def get_time_taken(self, amount, time_scaling=-1):
         if time_scaling < 0:
             time_scaling = self.time_scale
-        return (amount*10) / math.log(time_scaling * 0.95)
+        return (amount*8) / math.log(time_scaling * 0.95)
 
     def raw_produce(self, amount=-1):
         if self.producing == 1:
@@ -251,7 +449,7 @@ class Chest:
     ]
     LOOT = [
         [
-            {"name": "daily reward", "lower": 10, "upper": 10},
+            {"name": "daily reward", "lower": 1, "upper": 1},
             {"type": "$$$", "lower": 50, "upper": 110},
             {"type": "?base", "lower": 20, "upper": 60}
         ]
@@ -312,14 +510,46 @@ class Chest:
         return rewards
 class Market:
     ACHIEVEMENTS = {
-        "Base": {
-            "desc": ":package: Achievements to do with collecting resources:",
-            "name": "base",
+        "Money": {
+            "desc": ":package: Achievements to do with money:",
+            "name": "money",
             "achievs": [
                 {
+                    "id": "money_1",
+                    "name": "Trading beginner",
                     "condition": lambda market, user: market.get_money(user) > 100,
                     "desc": "Have a balance of over $100"
-                }
+                },
+                {
+                    "id": "money_2",
+                    "name": "Market haggler",
+                    "condition": lambda market, user: market.get_money(user) > 1000,
+                    "desc": "Have a balance of over $1000"
+                },
+                {
+                    "id": "money_3",
+                    "name": "Entrepreneur",
+                    "condition": lambda market, user: market.get_money(user) > 10000,
+                    "desc": "Have a balance of over $10,000"
+                },
+                {
+                    "id": "money_3",
+                    "name": "Investor",
+                    "condition": lambda market, user: market.get_money(user) > 100000,
+                    "desc": "Have a balance of over $100,000"
+                },
+                {
+                    "id": "money_4",
+                    "name": "Millionaire",
+                    "condition": lambda market, user: market.get_money(user) > 1000000,
+                    "desc": "Have a balance of over $1,000,000"
+                },
+                {
+                    "id": "money_5",
+                    "name": "Horder",
+                    "condition": lambda market, user: market.get_money(user) > 1000000000,
+                    "desc": "Have a balance of $1,000,000,000"
+                },
             ]
         }
     }
@@ -363,21 +593,42 @@ class Market:
         self.inventory["save_delay"] = 60 # save every minute
         self.inventory["save_id"] = 0
         self.factories["produce_delay"] = 30
+        self.reminders = {}
+        self.reminders["next"] = time.time()
         self.settings = {
             "ignore_list": [],
             "cleanup": {},
-            "cleanup_tags": {}
+            "cleanup_tags": {},
+            "motd": {},
+            "prefix": {}
         }
         self.games = {
             "speedtype": {},
-            "hangman": {}
+
         }
+        self.riddles = {}
         self.chests = {}
         self.tags = {}
         self.tags["__tagban__"] = {}
         self.load()
         self.save_loop()
         self.produce_loop()
+
+    def get_prefix(self, bot, message):
+        if message.channel.id in self.settings["prefix"]:
+            return self.settings["prefix"][message.channel.id]
+        return bot.default_prefix
+
+    def get_worth(self, user):
+        worth = self.get_money(user)
+        if user in self.inventory:
+            for item in self.inventory[user]:
+                worth += self.inventory[user][item] * max(1, self.get_market_min_price(item))
+        if user in self.factories:
+            for fid in self.factories[user]:
+                factory = self.factories[user][fid]
+                worth += factory.get_amount(86400) * self.get_market_min_price(item)
+        return worth
 
     def give_chest(self, user_id, grade):
         if not is_number(grade):
@@ -475,6 +726,28 @@ class Market:
     def close(self):
         self.running = False
 
+    def add_reminder(self, user, message, delay):
+        if user not in self.reminders:
+            self.reminders[user] = []
+        self.reminders[user].append([time.time() + delay, message])
+
+    def check_reminders(self, bot):
+        ctime = time.time()
+        if self.reminders["next"] <= ctime:
+            for user in self.reminders:
+                if user != "next":
+                    dest = bot.client.connection._get_private_channel_by_user(user)
+                    if dest is None:
+                        dest = yield from bot.client.start_private_message(discord.User(id=user, name="???", desc="0000", avatar=None, bot=False))
+                    new_reminders = []
+                    for reminder in self.reminders[user]:
+                        if reminder[0] <= ctime:
+                            yield from bot.client.send_message(dest, "Reminder: " + reminder[1])
+                        else:
+                            new_reminders.append(reminder)
+                    self.reminders[user] = new_reminders
+            self.reminders["next"] = ctime + 60
+
     def save(self, dir_suffix=""):
         if dir_suffix == "":
             self.inventory["save_id"] += 1
@@ -482,7 +755,7 @@ class Market:
             os.makedirs("data/")
         if not os.path.exists("data/" + dir_suffix):
             os.makedirs("data/" + dir_suffix)
-        to_save = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings"]
+        to_save = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings", "reminders"]
         for fname in to_save:
             try:
                 data = getattr(self, fname)
@@ -519,7 +792,7 @@ class Market:
         if not os.path.exists("data/"):
             os.makedirs("data/")
         if os.path.exists("data/" + dir_suffix):
-            to_load = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings"]
+            to_load = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings", "reminders"]
             for fname in to_load:
                 try:
                     file_name = "data/" + dir_suffix + fname + ".json"
@@ -653,6 +926,11 @@ class Market:
         self.factories[user][factory_id] = factory
         return factory
 
+    def get_factory_amount(self, user):
+        if user in self.factories:
+            return len(self.factories[user])
+        return 0
+
     def get_factory(self, user, factory_id):
         by_nickname = not is_number(factory_id)
         if user in self.factories:
@@ -682,6 +960,13 @@ class Market:
             factory.nickname = new_nick
             return True
         return False
+
+    def get_inventory_amount(self, user):
+        total = 0
+        if user in self.inventory:
+            for item in self.inventory[user]:
+                total += self.inventory[user][item]
+        return total
 
     def get_inventory(self, user, item):
         if user in self.inventory:
