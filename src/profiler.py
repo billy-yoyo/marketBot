@@ -1,3 +1,11 @@
+
+#
+#    THIS FUNCTIONALITY IS DISABLED UNTIL I CAN GET PYGAME TO WORK
+#        I'm struggling to get pygame to install correctly on my server so until then I've had to disable the profile command.
+#        I will try and install pygame again at some point but I'm going to prioritise other things first.
+#
+
+
 import os
 import pygame
 import math
