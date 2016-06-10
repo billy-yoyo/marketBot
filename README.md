@@ -36,7 +36,7 @@ Want to create your own plugin?
   
   create as many command handlers as you want, these come in pairs: 
   
-    example_handle(bot, message, command) & example_handle_l(command)
+    _example\_handle(bot, message, command) & example\_handle\_l(command)_
     
     where bot is the instance of the botlib Bot class, message is the discord.Message instance and command is the command split by " "
     (so m$example command -> command=["example", "command"])
