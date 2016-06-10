@@ -24,8 +24,8 @@ File information:
   * create a function "setup(bot, help_page, filename)" in your plugin file
   * create as many command handlers as you want, these come in pairs: 
   
-    example_handle(bot, message, command)
-    example_handle_l(command)
+        example_handle(bot, message, command)
+        example_handle_l(command)
     
   * where bot is the instance of the botlib Bot class, message is the discord.Message instance and command is the command split by " "
   (so m$example command -> command=["example", "command"])
@@ -33,7 +33,7 @@ File information:
   * I'll get around to making example\_handle\_l not-required at some point (I'll make sure it's backwards compatible though)
   * now in your setup function register your handlers:
   
-    bot.register_command("command_root", example_handle, example_handle_l)
+        bot.register_command("command_root", example_handle, example_handle_l)
     
   * Now the command will be registered. 
   * I don't really have a solution to how you can test your own plugins though, as downloading and running /src/ won't compile I'm afraid,
