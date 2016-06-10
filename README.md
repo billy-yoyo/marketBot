@@ -3,6 +3,9 @@ MarketBot is a bot for Discord written in python 3.4 with discord.py
 
 If you're looking for information about the bot and how to use it, please visit http://billyoyo.me
 
+Note: MarketBot won't run if you run it from here as I've .gitignored some files it relies on (no code, just things like word-lists)
+so if you want to run it look at Missing File Information
+
 File information:
 
     /src/run.py - runs the bot
@@ -16,6 +19,19 @@ File information:
     /src/plugins/moderation_cmds.py - contains the code for the 'moderation' commands
     /src/plugins/util_cmds.py - contains the code for the 'utility' commands
 
+Missing information:
+
+    /src/adminlist.txt - list of client ID's who are admins - one ID per line
+    /src/credentials.txt - the bot's token and nothing else
+    /src/riddles.txt - list of riddles, riddles are seperated by ;; and question/answers are seperated by ::
+    /src/words_new.txt - list of words, all on one line, seperated by ; (this is what I made formatter.py for)
+    /src/data - create this folder
+    /src/avatars - create this folder
+    /src/card_img - create this folder
+    /src/cards - create this folder
+    /src/scripts - create this folder
+    
+some of those folders are currently unused because of pygame not being installed and most of them will create themselves.
 
 **Want to create your own plugin?**
 
