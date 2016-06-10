@@ -5,27 +5,29 @@ If you're looking for information about the bot and how to use it, please visit 
 
 File information:
 
-  /src/run.py - runs the bot
+    /src/run.py - runs the bot
   
-  /src/main.py - starts the bot (this is what run.py runs)
+    /src/main.py - starts the bot (this is what run.py runs)
   
-  /src/botlib.py - some classes to make my life easier and keep all the information nice and together
+    /src/botlib.py - some classes to make my life easier and keep all the information nice and together
   
-  /src/market.py - container for all of the persistent data (data kept through saves) also where the main bulk of the game is.
+    /src/market.py - container for all of the persistent data (data kept through saves) also where the main bulk of the game is.
   
-  /src/profiler.py - creates profile cards for users. WIP
+    /src/profiler.py - creates profile cards for users. WIP
   
-  /src/formatter.py - formats my hangman/speedtype word list for me.
+    /src/formatter.py - formats my hangman/speedtype word list for me.
   
-  /src/plugins/market_cmds.py - contains the code for the main game + some extra (generally 'core' and 'misc' commands)
+    /src/plugins/market_cmds.py - contains the code for the main game + some extra (generally 'core' and 'misc' commands)
   
-  /src/plugins/fun_cmds.py - contains the code for the 'fun' commands
+    /src/plugins/fun_cmds.py - contains the code for the 'fun' commands
   
-  /src/plugins/moderation_cmds.py - contains the code for the 'moderation' commands
+    /src/plugins/moderation_cmds.py - contains the code for the 'moderation' commands
   
-  /src/plugins/util_cmds.py - contains the code for the 'utility' commands
+    /src/plugins/util_cmds.py - contains the code for the 'utility' commands
   
-  
+
+
+
 Want to create your own plugin?
 
   Go ahead, it's pretty easy, to create a plugin:
@@ -39,8 +41,8 @@ Want to create your own plugin?
     example_handle(bot, message, command)
     example_handle_l(command)
     
-    where bot is the instance of the botlib Bot class, message is the discord.Message instance and command is the command split by " "
-    (so m$example command -> command=["example", "command"])
+  where bot is the instance of the botlib Bot class, message is the discord.Message instance and command is the command split by " "
+  (so m$example command -> command=["example", "command"])
     
   example\_handle has no returns and example\_handle\_l should just return 1 (it's not relevant as I haven't implemented command binds)
   
