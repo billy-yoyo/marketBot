@@ -7,8 +7,10 @@ def run(restarter, restart_source=None):
     client = discord.Client()
 
     def help_handle(bot, message, cmd):
-        yield from bot.client.send_message(message.author, bot.help_page.get(bot, command=cmd[1:]))
-
+        if cmd[-1] == "here":
+            yield from bot.client.send_message(message.channel, bot.help_page.get(bot, command=cmd[1:-1]))
+        else:
+            yield from bot.client.send_message(message.author, bot.help_page.get(bot, command=cmd[1:]))
 
     def help_length_handle(cmd):
         return 1

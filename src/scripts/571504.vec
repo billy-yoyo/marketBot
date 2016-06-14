@@ -1,0 +1,18 @@
+world!
+
+$WRITE=0
+!CHECK=$test
+!FOUR=0.4
+!bool=true
+
+($bool){
+&RED=[0,255,0] 
+}
+
+FILL BLACK
+ELIP $FOUR 0.2 0.2 0.6 WHITE
+RECT 0.25 0.25 0.5 0.5 RED 2
+CIRC 0.5 0.5 0.2 WHITE
+LINE 0.1 0.1 0.9 0.9 RAND
+TEXT 0.05 0.05 monospace 0.1 [0,0,255] $HELLO
+POLY RAND 0.1 0.1 0.9 0.1 0.9 0.9 2

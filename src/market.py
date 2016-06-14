@@ -600,8 +600,11 @@ class Market:
             "cleanup": {},
             "cleanup_tags": {},
             "motd": {},
-            "prefix": {}
+            "prefix": {},
+            "modlog": {},
+            "erate": {}
         }
+        self.news = {}
         self.games = {
             "speedtype": {},
 
@@ -614,8 +617,22 @@ class Market:
         self.save_loop()
         self.produce_loop()
 
-    def get_prefix(self, bot, message):
-        if message.channel.id in self.settings["prefix"]:
+    def get_erate_bind(self, chid, curr):
+        if chid in self.settings["erate"]:
+            if curr in self.settings["erate"][chid]:
+                return self.settings["erate"][chid][curr]
+        return curr
+
+    def mod_log(self, client, server, message):
+        if server.id in self.settings["modlog"]:
+            for channel in server.channels:
+                if channel.id == self.settings["modlog"][server.id]:
+                    yield from client.send_message(channel, message)
+                    return True
+        return False
+
+    def get_prefix(self, bot, message, by_channel=False):
+        if (by_channel and message.id in self.settings["prefix"]) or (not by_channel and message.channel.id in self.settings["prefix"]):
             return self.settings["prefix"][message.channel.id]
         return bot.default_prefix
 
@@ -755,7 +772,7 @@ class Market:
             os.makedirs("data/")
         if not os.path.exists("data/" + dir_suffix):
             os.makedirs("data/" + dir_suffix)
-        to_save = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings", "reminders"]
+        to_save = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings", "reminders", "news"]
         for fname in to_save:
             try:
                 data = getattr(self, fname)
@@ -792,7 +809,7 @@ class Market:
         if not os.path.exists("data/"):
             os.makedirs("data/")
         if os.path.exists("data/" + dir_suffix):
-            to_load = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings", "reminders"]
+            to_load = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings", "reminders", "news"]
             for fname in to_load:
                 try:
                     file_name = "data/" + dir_suffix + fname + ".json"

@@ -97,6 +97,19 @@ def moder_handle(bot, msg, cmd):
                     yield from bot.client.send_message(msg.channel, "Changed the bot's prefix to " + prefix + " for this channel")
                 else:
                     yield from bot.client.send_message(msg.channel, "You don't have permission to use that command!")
+            elif cmd[0] == "modlog":
+                if bot.is_me(msg) or msg.channel.permissions_for(msg.author).manage_messages:
+                    if cmd[1] == "off":
+                        if msg.channel.server.id in bot.market["settings"]["modlog"]:
+                            del bot.market.settings["modlog"][msg.channel.server.id]
+                            yield from bot.client.send_message(msg.channel, "Turned modlog off")
+                        else:
+                            yield from bot.client.send_message(msg.channel, "Modlog not set for this server!")
+                    elif cmd[1] == "on":
+                        bot.market.settings[msg.channel.server.id] = msg.channel.id
+                        yield from bot.client.send_message(msg.channel, "Set this channel to the mod log channel.")
+                else:
+                    yield from bot.client.send_message(msg.channel, "You don't have permission to use that command!")
             elif cmd[0] == "ignore":
                 if bot.is_me(msg) or msg.channel.permissions_for(msg.author).manage_messages:
                     if not msg.channel.id in bot.market.settings["ignore_list"]:

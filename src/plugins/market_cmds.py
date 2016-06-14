@@ -965,7 +965,7 @@ def market_handle(bot, msg, cmd):
                     "To register to play, use **" + bot.prefix + "register**",
                     "To get " + bot.name + " in your server, use https://discordapp.com/oauth2/authorize?client_id=187857778583404545&scope=bot&permissions=0"
                     "",
-                    "Read up fully on how the game works at our github page: https://github.com/billy-yoyo/marketBot/ ",
+                    "To find out more, visit our website: http://billyoyo.me ",
                 ]
                 if len(cmd) > 1 and cmd[1] == "here":
                     yield from bot.client.send_message(msg.channel, "\n".join(lines))
@@ -1313,9 +1313,9 @@ def setup(bot, help_page, filename):
     help_page.register("items", "", "information about item types", root="core", header=":notebook_with_decorative_cover:Item commands:")
     help_page.register("items get", "[item]", "shows the item type for that item", root="items")
     help_page.register("items list", "[item_type]", "lists the items with that item type", root="items")
+    help_page.register("register", "", "registers to play the game and sets you up with your first factory", root="core")
+    help_page.register("unregister", "", "unregisters you, removing all trace of you from the market", root="core")
 
-    help_page.register("register", "", "registers to play the game and sets you up with your first factory", root="misc")
-    help_page.register("unregister", "", "unregisters you, removing all trace of you from the market", root="misc")
     help_page.register("guide", "", "gives you tips on what you should be working towards next", root="misc")
     help_page.register("join", "", "Gives you a bot invite link so you can get " + bot.name + " in your servers", root="misc")
     help_page.register("ticket", "message|request|help|error|ban [message]", "commands for sending a ticket to the admins", root="misc")
@@ -1336,6 +1336,7 @@ def setup(bot, help_page, filename):
     help_page.register("8ball", "[question]", "gives you a reply from the magic 8 ball", root="fun")
     help_page.register("roll", "[amount]", "rolls that amount of dice, one if no amount given", root="fun")
     help_page.register("flip", "", "flips a coin", root="fun")
+    help_page.register("reverse", "[text]", "reverse the text", root="fun")
     help_page.register("xkcd", "[n]", "gives you the xkcd comic with that id, or a random one if n isn't given", root="fun")
     help_page.register("canh", "[n]", "gives you the cyanide and happiness comic with that id, or a random one if n isn't given", root="fun")
     help_page.register("hb", "[suffix]", "gives you the information about the current humble bundle, suffix is a url suffix (optional)", root="fun")
@@ -1352,10 +1353,13 @@ def setup(bot, help_page, filename):
     #help_page.register("vs", "[width] [height] [code]", "experimental command for creating vector graphics, no documentation on how it works until I finalize it.", root="fun")
     #help_page.register("vs", "[width] [height] [code]", "experimental command for creating vector graphics, no documentation on how it works until I finalize it.", root="fun")
     help_page.register("riddle", "", "gives you a riddle, see **%p%help riddle** for more information", root="fun")
-    help_page.register("riddle", "new", "gives you a new riddle, use **%p%riddle [guess]** to make guesses. Riddles are per-channel", root="riddle")
-    help_page.register("riddle", "giveup", "gives up on the channel's current riddle", root="riddle")
+    help_page.register("riddle new", "", "gives you a new riddle, use **%p%riddle [guess]** to make guesses. Riddles are per-channel", root="riddle")
+    help_page.register("riddle giveup", "", "gives up on the channel's current riddle", root="riddle")
+    help_page.register("riddle [guess]", "", "make a guess", root="riddle")
 
     help_page.register("stats", "", "shows some stats about the bot", root="util")
+    help_page.register("search", "[search]", "shows the top result of a web search", root="util")
+    help_page.register("wiki", "[search]", "shows the most relevant wiki page to what you wrote", root="util")
     help_page.register("ud", "[search]", "shows the top result of an Urban Dictionary search", root="util")
     help_page.register("uptime", "", "shows you how long the bots been running for", root="util")
     help_page.register("motd", "", "shows you the message-of-the-day for the current channel", root="util")
@@ -1367,6 +1371,8 @@ def setup(bot, help_page, filename):
     help_page.register("tag", "", "commands for creating text-tags, see **%p%help tag** for more information", root="util")
     help_page.register("tag \"tag_name\" tag", "", "creates a new tag (tags are channel-specific)", root="tag")
     help_page.register("tag tag_name", "", "pastes that tag in to chat", root="tag")
+    help_page.register("erate", "[currency_1] [currency_2]", "gets the exchange rate between those two currencies", root="util")
+    help_page.register("erate bind", "[bind] [currency]", "creates a binding so 'bind' can be used instead of 'currency' when using erate", root="util")
 
     help_page.register("prefix", "[prefix]", "sets the prefix for this channel", root="mod")
     help_page.register("purge", "[limit] [args]", "purges the chat for the given args, see **%p%help purge-args** for details on these args", root="mod")

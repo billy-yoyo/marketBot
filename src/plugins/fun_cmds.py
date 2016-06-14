@@ -1,7 +1,7 @@
-import traceback, random, asyncio, requests, market, os, aiohttp
+import traceback, random, asyncio, market, aiohttp, json
+from textart import Art
 from difflib import SequenceMatcher
 from os import listdir
-from os.path import isfile, join
 
 import requests
 import re
@@ -511,8 +511,110 @@ def fun_handle(bot, msg, cmd):
                     response = yield from bot.client.session.get("http://random.cat/meow")
                     data = yield from response.json()
                     yield from bot.client.send_message(msg.channel, data["file"])
-
-
+            elif cmd[0] == "poem":
+                yield from bot.client.send_message(msg.channel, "```\n" + "\n".join(bot.poems[random.choice(list(bot.poems.keys()))]) + "\n```")
+            elif cmd[0] == "art":
+                formatting = bot.prefix + "art [width] [height] [args]"
+                width, height = int(cmd[1]), int(cmd[2])
+                if 0 < width < 61:
+                    if 0 < height < 31:
+                        art = Art(width, height)
+                        rawcode = [x.replace(" ", "") for x in " ".join(cmd[3:]).replace("```", "").split("\n") if x != ""]
+                        log = []
+                        for line in rawcode:
+                            if "(" in line and line[-1] == ")":
+                                ind = line.find("(")
+                                fname = line[:ind]
+                                args = line[ind+1:-1].split(",")
+                                if args[0] == "":
+                                    args[0] = " "
+                                if fname == "rect":
+                                    if len(args) < 5:
+                                        log.append("not enough arguments: '" + line + "'")
+                                    else:
+                                        border = 0
+                                        if len(args) > 5:
+                                            border = float(args[5])
+                                        art.rect(args[0], [int(args[1]), int(args[2]), int(args[3]), int(args[4])], border)
+                                elif fname == "square":
+                                    if len(args) < 4:
+                                        log.append("not enough arguments: '" + line + "'")
+                                    else:
+                                        border = 0
+                                        if len(args) > 4:
+                                            border = float(args[4])
+                                        art.square(args[0], [int(args[1]), int(args[2])], int(args[3]), border)
+                                elif fname == "circle":
+                                    if len(args) < 4:
+                                        log.append("not enough arguments: '" + line + "'")
+                                    else:
+                                        border = 0
+                                        if len(args) > 4:
+                                            border = float(args[4])
+                                        art.circle(args[0], [int(args[1]), int(args[2])], int(args[3]), border)
+                                elif fname == "line":
+                                    if len(args) < 5:
+                                        log.append("not enough arguments: '" + line + "'")
+                                    else:
+                                        border = 0
+                                        if len(args) > 5:
+                                            border = float(args[5])
+                                        art.line(args[0], [int(args[1]), int(args[2])], [int(args[3]), int(args[4])], border)
+                                elif fname == "triangle":
+                                    if len(args) < 7:
+                                        log.append("not enough arguments: '" + line + "'")
+                                    else:
+                                        border = 0
+                                        if len(args) > 7:
+                                            border = float(args[7])
+                                        art.triangle(args[0], [int(args[1]), int(args[2])], [int(args[3]), int(args[4])], [int(args[5]), int(args[6])], border)
+                                elif fname == "quad":
+                                    if len(args) < 9:
+                                        log.append("not enough arguments: '" + line + "'")
+                                    else:
+                                        border = 0
+                                        if len(args) > 9:
+                                            border = float(args[7])
+                                        art.quad(args[0], [int(args[1]), int(args[2])], [int(args[3]), int(args[4])], [int(args[5]), int(args[6])], [int(args[7]), int(args[8])], border)
+                                elif fname == "polygon":
+                                    if len(args) < 3:
+                                        log.append("not enough arguments: '" + line + "'")
+                                    else:
+                                        border = 0
+                                        if len(args) % 2 == 0:
+                                            border = float(args[-1])
+                                            sec = args[1:-1]
+                                        else:
+                                            sec = args[1:]
+                                        rps = [int(x) for x in sec]
+                                        ps = []
+                                        for i in range(0, len(rps), 2):
+                                            ps.append([rps[i], rps[i+1]])
+                                        art.polygon(args[0], ps, border)
+                                elif fname == "lines":
+                                    if len(args) < 3: log.append("not enough arguments: '" + line + "'")
+                                    else:
+                                        rps = [int(x) for x in sec]
+                                        ps = []
+                                        for i in range(0, len(rps), 2):
+                                            ps.append([rps[i], rps[i + 1]])
+                                        art.lines(args[0], ps, float(args[-1]))
+                                elif fname == "fill":
+                                    if len(args) < 1: log.append("not enough arguments: '" + line + "'")
+                                    else:
+                                        art.fill(args[0])
+                                else:
+                                    log.append("unrecognized function '" + fname + "' on line '" + line + "'")
+                            else:
+                                log.append("invalid syntax: '" + line + '"')
+                        lines = art.text()
+                        if len(log) > 0:
+                            lines += "\n```\n" + "\n".join(log) + "\n```"
+                        yield from bot.client.send_message(msg.channel, lines)
+                    else:
+                        yield from bot.client.send_message(msg.channel, "Invalid height, must be from 1 and 20")
+                else:
+                    yield from bot.client.send_message(msg.channel, "Invalid width, must be from 1 and 20")
             #elif cmd[0] == "profile":
             #    if len(cmd) > 1 and cmd[1] == "clean":
             #        if bot.is_me(msg):
@@ -568,6 +670,10 @@ def setup(bot, help_page, filename):
     bot.riddles = []
     for riddle in spl:
         bot.riddles.append(riddle.replace('"', "").split("::"))
+    f = open("poems.txt", "r")
+    bot.poems = json.load(f)
+    if not f.closed:
+        f.close()
     print(len(bot.riddles))
 
     #onlyfiles = [f for f in listdir("card_img/") if isfile(join("card_img/", f))]
@@ -577,7 +683,6 @@ def setup(bot, help_page, filename):
 
     bot.register_command("8ball", fun_handle, fun_handle_l)
     bot.register_command("roll", fun_handle, fun_handle_l)
-    bot.register_command("word", fun_handle, fun_handle_l)
     bot.register_command("flip", fun_handle, fun_handle_l)
     bot.register_command("speedtype", fun_handle, fun_handle_l)
     bot.register_command("xkcd", fun_handle, fun_handle_l)
@@ -590,3 +695,5 @@ def setup(bot, help_page, filename):
     bot.register_command("riddle", fun_handle, fun_handle_l)
     bot.register_command("reverse", fun_handle, fun_handle_l)
     bot.register_command("cat", fun_handle, fun_handle_l)
+    bot.register_command("poem", fun_handle, fun_handle_l)
+    bot.register_command("art", fun_handle, fun_handle_l)
