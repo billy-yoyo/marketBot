@@ -1,4 +1,5 @@
-import math, random
+import math
+import traceback
 
 
 class Art:
@@ -20,12 +21,19 @@ class Art:
 
         return (b1 == b2) and (b2 == b3)
 
+    # internal method to find the square of the length of a vector
+    #   x = the x value of the vector
+    #   y = the y value of the vector
+    @staticmethod
+    def _sq_length(x, y):
+        return math.pow(x, 2) + math.pow(y, 2)
+
     # internal method to find the length of a vector
     #   x = the x value of the vector
     #   y = the y value of the vector
     @staticmethod
     def _length(x, y):
-        return math.sqrt(math.pow(x, 2) + math.pow(y, 2))
+        return math.sqrt(Art._sq_length(x, y))
 
     # internal method to convert a point to a unit (length 1)
     #   p = a point [x, y]
@@ -59,10 +67,22 @@ class Art:
         self.grid = [background * width] * height
 
     # creates a copy of this art object
-    def copy(self):
-        art = Art(self.width, self.height)
-        for y in range(len(self.grid)):
-            art.grid[y] = self.grid[y]
+    #    area = the area to create a copy of, if None then the area is the whole art, defaults to None
+    def copy(self, area=None):
+        if area is None:
+            sx, sy, ex, ey = 0, 0, self.width, self.height
+        elif len(area) == 2:
+            sx, sy, ex, ey = self.clampx(area[0]), self.clampy(area[1]), self.width, self.height
+        elif len(area) == 3:
+            sx, sy, ex, ey = self.clampx(area[0]), self.clampy(area[1]), self.clampx(area[0] + area[2]), self.clampy(area[1] + area[2])
+        elif len(area) == 4:
+            sx, sy, ex, ey = self.clampx(area[0]), self.clampy(area[1]), self.clampx(area[0] + area[2]), self.clampy(area[1] + area[3])
+        else:
+            return None
+
+        art = Art(ex-sx, ey-sy)
+        for y in range(sy, ey):
+            art.grid[y-sy] = self.grid[y][sx:ex]
         return art
 
     # clamps that x value so that it lies inside the art grid
@@ -79,7 +99,7 @@ class Art:
 
     # clamp that list of y values so they all lie inside the art grid
     def clampys(self, ys):
-        return [self.clampy[y] for y in ys]
+        return [self.clampy(y) for y in ys]
 
     # set [x, y] to v
     def set(self, x, y, v):
@@ -263,6 +283,69 @@ class Art:
                 return True
         return False
 
+    # renders a gradient in to the area defined
+    #    vs = the string of characters defining the gradient, must be at least one character
+    #    start = the point [x, y] that defines the 'start' of the gradient line
+    #    end = the point [x, y] that definds the 'end' of the gradient line
+    #    area = the area to draw the gradient in, if None then it's the whole art. Defaults to None.
+    def gradient(self, vs, start, end, area=None):
+        if len(vs) > 0:
+            if area is None:
+                sx, sy, ex, ey = 0, 0, self.width, self.height
+            elif len(area) == 2:
+                sx, sy, ex, ey = self.clampx(area[0]), self.clampy(area[1]), self.width, self.height
+            elif len(area) == 3:
+                sx, sy, ex, ey = self.clampx(area[0]), self.clampy(area[1]), self.clampx(area[0] + area[2]), self.clampy(area[1] + area[2])
+            elif len(area) == 4:
+                sx, sy, ex, ey = self.clampx(area[0]), self.clampy(area[1]), self.clampx(area[0] + area[2]), self.clampy(area[1] + area[3])
+            else:
+                return False
+
+            # the square of the distance from the start to the end
+            total_dist_sq = self._sq_length(*self._minus(start, end))
+            total_dist = math.sqrt(total_dist_sq)
+            dist_const = 0.5 * total_dist
+            dist_const_2 = 2 * total_dist
+            vslength = len(vs)
+            for y in range(sy, ey):
+                for x in range(sx, ex):
+                    # square of the length from this point to the start
+                    d1 = self._sq_length(*self._minus(start, [x, y]))
+                    # square of the length from this point to the end
+                    d2 = self._sq_length(*self._minus(end, [x, y]))
+                    rtd1 = math.sqrt(d1)
+                    rtd2 = math.sqrt(d2)
+                    # first check if this point is 'behind' the start line
+                    # if rtd1 == 0, [x, y] is the start point so set cosd1 = 0 to avoid division by zero errors
+                    if rtd1 > 0:
+                        # calculate the cosine of the angle between the gradient line and the line from the start to this point
+                        cosd1 = (d1 + total_dist_sq - d2) / (2 * rtd1 * total_dist)
+                    else:
+                        cosd1 = 0
+                    if cosd1 <= 0: #angle is greater than or equal to 90 degrees
+                        # gradient is behind the start, so use the first value
+                        self.set(x, y, vs[0])
+                    else:
+                        # now check if the point is 'behind' the end line
+                        # if rtd2 == 0, [x, y] is the end point so set cosd2 = 0 to avoid division by zero errors
+                        if rtd2 > 0:
+                            # calculate the cosine of the angle between the gradient line and the line from the end to this point
+                            cosd2 = (d2 + total_dist_sq - d1) / (2 * rtd2 * total_dist)
+                        else:
+                            cosd2 = 0
+                        if cosd2 <= 0: # angle is greater than or equal to 90 degrees
+                            # gradient is behind the end, so use the last value
+                            self.set(x, y, vs[-1])
+                        else:
+                            # position is within the start and the end.
+                            # calculate the perpendicular distance to the start line
+                            dist = dist_const + ((d1 - d2) / dist_const_2)
+                            # find the index based on the percentage of the total perpendicular distance this point is
+                            index = min(vslength-1, max(0, math.floor((dist/total_dist) * vslength)))
+                            self.set(x, y, vs[index])
+            return True
+        return False
+
     # runs a batch of functions
     #    batch is a dictionary with the format:
     #         { "function-name": [ args ], ... }
@@ -282,20 +365,21 @@ class Art:
     #    area = the area of the source art to draw [x, y, width, height], if None then draws the whole thing (defaults to None)
     #    alpha = the collection of characters which won't get drawn (defaults to " ", can be any amount of chars, e.g. "*,."
     def blit(self, art, dest=[0,0], area=None, alpha=" "):
-        if area is None:
-            sx, sy, ex, ey = 0, 0, art.width, art.height
-        elif len(area) == 2:
-            sx, sy, ex, ey = self.clampx(area[0]), self.clampy(area[1]), art.width, art.height
-        elif len(area) == 3:
-            sx, sy, ex, ey = self.clampx(area[0]), self.clampy(area[1]), self.clampx(area[0] + area[2]), self.clampy(area[1] + area[2])
-        elif len(area) == 4:
-            sx, sy, ex, ey = self.clampx(area[0]), self.clampy(area[1]), self.clampx(area[0] + area[2]), self.clampy(area[1] + area[3])
-        else:
-            return False
-        for x in range(sx, ex):
-            for y in range(sy, ey):
-                if art.grid[y][x] not in alpha:
-                    self.set(x+dest[0]-sx, y+dest[1]-sy, art.grid[y][x])
+        if art is not self:
+            if area is None:
+                sx, sy, ex, ey = 0, 0, art.width, art.height
+            elif len(area) == 2:
+                sx, sy, ex, ey = art.clampx(area[0]), art.clampy(area[1]), art.width, art.height
+            elif len(area) == 3:
+                sx, sy, ex, ey = art.clampx(area[0]), art.clampy(area[1]), art.clampx(area[0] + area[2]), art.clampy(area[1] + area[2])
+            elif len(area) == 4:
+                sx, sy, ex, ey = art.clampx(area[0]), art.clampy(area[1]), art.clampx(area[0] + area[2]), art.clampy(area[1] + area[3])
+            else:
+                return False
+            for x in range(sx, ex):
+                for y in range(sy, ey):
+                    if art.grid[y][x] not in alpha:
+                        self.set(x+dest[0]-sx, y+dest[1]-sy, art.grid[y][x])
 
     # filters the art
     #    func = the function used to filter, one of:
@@ -325,33 +409,98 @@ class Art:
             else:
                 self.grid[y] = self.grid[y][:sx] + func(self, self.grid[y][sx:ex]) + self.grid[y][ex:]
 
-    # replaces all instances of 'old' with 'new', old and new must be the same length
+    # replaces all instances of 'old' with 'new', old and new must be the same length (unless bychar is True, in which case new can be length 1)
     #    old = the string to replace
     #    new = the string to replace the old string with
+    #    area = the area of the art to perform the replaces in
     #    inplace = whether or not the replacement will create a new art object or edit this one (default to False, creating a new object)
-    def replace(self, old, new, inplace=False):
-        if len(old) == len(new):
+    #    bychar = whether or not the replacement is done by character or replacing the whole of old with new
+    #             replace('xyz', '123', bychar=True) is equivalent to replace('x', '1') replace('y', '2') replace('z', '3')
+    #             if bychar is true then 'new' can be a single character, so
+    #             replace('xyz', '1', bychar=True) is equivalent to replace('x', '1') replace('y', '1') replace('z' '1')
+    #    cut = whether or not to cut out the area defined and just return that, or return the whole art with the swaps done in the area
+    #          if true this overrides inplace
+    def replace(self, old, new, area=None, inplace=False, bychar=False):
+        if len(old) == len(new) or (len(new) == 1 and bychar):
+            art = self.copy(area)
+            for y in range(art.height):
+                if bychar:
+                    for i in range(len(old)):
+                        if len(new) == 1:
+                            newchar = new
+                        else:
+                            newchar = new[i]
+                        art.grid[y] = art.grid[y].replace(old[i], newchar)
+                else:
+                    art.grid[y] = art.grid[y].replace(old, new)
             if inplace:
-                art = self
+                pos = [0, 0]
+                if area is not None:
+                    pos = [area[0], area[1]]
+                self.blit(art, pos)
+                return self
             else:
-                art = self.copy()
-            for i in range(len(art.grid)):
-                art.grid[i] = art.grid[i].replace(old, new)
-            return art
+                finalart = self.copy()
+                pos = [0, 0]
+                if area is not None:
+                    pos = [area[0], area[1]]
+                finalart.blit(art, pos)
+                return finalart
         else:
             return None
 
-    # returns a new art object containing a section of this one
-    #     area = the area to cut out, [x, y, width, height] if None this function just returns copy()
-    def cut(self, area):
-        if area is None:
-            return self.copy()
+    # swaps all instances of s1 and s2 in the art, s1 and s3 must be the same length
+    #    s1 = the first string to find
+    #    s2 = the second string to find
+    #    area = the area of the art to perform the swaps in
+    #    inplace = whether or not the replacement will create a new art object or edit this one (default to False, creating a new object)
+    #    bychar = whether or not the swap is done by character or by the whole string,
+    #             swap('xyz', '123', bychar=True) is equivalent to swap('x', '1') swap('y', '2') swap('z', '3')
+    #    cut = whether or not to cut out the area defined and just return that, or return the whole art with the swaps done in the area
+    #          if true this overrides inplace
+    def swap(self, s1, s2, area=None, inplace=False, bychar=False, cut=False):
+        if len(s1) == len(s2):
+            art = self.copy(area)
+            for y in range(art.height):
+                newline = ""
+                for x in range(art.width):
+                    if x < len(newline):
+                        continue
+                    else:
+                        if bychar:
+                            substr = art.grid[y][x]
+                            if substr in s1:
+                                newline += s2[s1.find(substr)]
+                            elif substr in s2:
+                                newline += s1[s2.find(substr)]
+                            else:
+                                newline += substr
+                        else:
+                            substr = art.grid[y][x:x+len(s1)]
+                            if substr == s1:
+                                newline += s2
+                            elif substr == s2:
+                                newline += s1
+                            else:
+                                newline += art.grid[y][x]
+                art.grid[y] = newline
+            if cut:
+                return art
+            elif inplace:
+                pos = [0, 0]
+                if area is not None:
+                    pos = [area[0], area[1]]
+                self.blit(art, pos)
+                return self
+            else:
+                finalart = self.copy()
+                pos = [0, 0]
+                if area is not None:
+                    pos = [area[0], area[1]]
+                finalart.blit(art, pos)
+                return finalart
         else:
-            sx, sy, ex, ey = self.clampx(area[0]), self.clampy(area[1]), self.clampx(area[0] + area[2]), self.clampy(area[1] + area[3])
-            art = Art(area[2], area[3])
-            for y in range(sy, ey):
-                art.grid[y-sy] = self.grid[y][sx:ex]
-            return art
+            return None
 
     # prints the lines in to the console
     def print(self):
@@ -363,26 +512,285 @@ class Art:
         return "```" + style + "\n" + "\n".join(self.grid) + "\n```"
 
 
-#def random_filt(art, line):
-#    chars = ""
-#    for i in range(len(line)):
-#        chars += random.choice("+=-%#@*")
-#    return chars
+class ArtResult:
+    def __init__(self, width, height):
+        self.arts = {
+            "main": Art(width, height)
+        }
+        self.rlog = []
+
+    def get_log(self):
+        return self.rlog
+
+    def art(self):
+        return self.arts["main"]
+
+    def log(self, message):
+        self.rlog.append(message)
+
+
+# Runs some artscript code,
+#   width, height is the width and height of the main artscript art object
+#   lines is a list of strings representing the lines of the code
 #
-#art = Art(9, 9)
-#art.filter(random_filt, bychar=True)
-#print(art.text())
-#p1 = [random.randint(0, 8), random.randint(0, 8)]
-#p2 = [random.randint(0, 8), random.randint(0, 8)]
-#p3 = [random.randint(0, 8), random.randint(0, 8)]
-#print(p1)
-#print(p2)
-#art.lines("*", [[2, 2], [4, 2], [5, 5], [3, 7], [1, 5]])
-#art.square("*", [4, 4], 1)
-#print(art.text())
-#art2 = art.cut([1, 1, 3, 3])
-#print(art2.text())
-#art.blit(art2, [4, 1])
-#print(art.text())
-#art3 = art.replace("5", " ")
-#print(art3.text())
+#   syntax and functions:
+#       objectname.function(arg_0, arg_1, ...) - calls the function with that object
+#       function(arg_0, arg_1, ...) - calls the function with the main art object
+#   area style argument:
+#       if *area is listed as an argument, this means x, y, [width, [height]]
+#       where: if x, y are given the copy will be from (x, y) to the end of the art
+#              if x, y, width are given the copy will be from (x, y) to (x + width, y + width)
+#              if x, y, width, height are given the copy will be from (x, y) to (x + width, y + height)
+#   functions: [] means optional arguments, don't include the []
+#       new(objectname, width, height) - create a new art object
+#       rename(objectname) - rename the object being called to 'objectname'
+#       copy(objectname, [*area]) - copies the object being called and creates a new object with the copy named 'objectname'
+#                                  area is the area to copy, if not given then it copies the whole object
+#       rect(character, x, y, width, height, [border_width]) - draws a rect on to the art object, border_width defaults to 0 (filled)
+#       square(character, x, y, size, [border_width]) - equivalent to rect(character, x, y, size, size, [border_width])
+#       circle(character, x, y, radius, [border_width]) - draws a circle on to the art object, border_width defaults to 0 (filled)
+#       line(character, x1, y1, x2, y2, [line_width]) - draws a line on to the art object, line_width defaults to 0
+#       triangle(character, x1, y1, x2, y2, x3, y3, [border_width]) - draws a triangle on to the art object, border_width defaults to 0 (filled)
+#       quad(character, x1, y1, x2, y2, x3, y3, x4, y4, [border_width]) - draws a quadrilateral on to the art object, border_width defaults to 0 (filled)
+#       polygon(character, x1, y1, x2, y2, ..., [border_width]) - draws a polygon on to the art object, can be any number of pairs of coordinates in ...
+#       lines(character, x1, y1, x2, y2, ..., line_width) - draws a series of lines on to the art object, can be any number of pairs of coordinates in ...
+#                                                           this is equivalent to line(character, x1, y1, x2, y2, line_width) line(character, x2, y2, x3, y3, line_width) etc.
+#       fill(character) - fills the art object with that character
+#       set(character, x, y) - sets (x, y) to that character
+#       gradient(char_gradient, x1, y1, x2, y2, [*area]) - renders a gradient on to the art, restricted to area if given
+#                                                         x1, y1 is the start of the gradient line, x2 y2 is the end of the gradient line
+#       replace(old, new, [*area], [bychar=True/False]) - replaces all instances of 'old' with 'new', restricted to area if given. old and new must be the same length
+#                                                        if bychar=True then it does it on a character basis, so replace('xy', '12', bychar=True) is equivalent to:
+#                                                        replace('x', '1') replace('y', '2')
+#                                                        if bychar=True then 'new' can be a single character, in which case replace('xyz', '1', bychar=True) is equivalent to:
+#                                                        replace('x', '1') replace('y', '1') replace('z', '1')
+#       swap(s1, s2, [*area] [bychar=True/False]) - sets all instances of 's1' to 's2' and all instances of 's2' to 's1', restricted to area if given. s1 and s2 must be the same length
+#                                                   if bychar=True then it does it on a character basis, so swap('xy', '12', bychar=True) is equivalent to:
+#                                                   swap('x', '1') swap('y', '2')
+#                                                   swap DOES NOT support the same functionality as replace and s1 and s2 must always be the same length.
+#       blit(objectname, [x, y, [*area]], [alpha=chars]) - draws that object on to the art,
+#                                                          x, y are the coordinates it gets rendered to, defaults to 0, 0
+#                                                          *area is the area of the object to get rended on to the art, default to all of it
+#                                                           alpha=chars, chars are the characters that will be ignored when drawing the object (won't be drawn)
+def art_script(width, height, lines):
+    result = ArtResult(width, height)
+    for line in lines:
+        try:
+            if "(" in line and line[-1] == ")":
+                art = result.arts["main"]
+                artname = "main"
+                if "." in line and line.find(".") < line.find("("):
+                    artsplit = line.split(".")
+                    line = artsplit[1].replace(" ", "")
+                    artname = artsplit[0]
+                    if artsplit[0] in result.arts:
+                        art = result.arts[artsplit[0]]
+                    else:
+                        art = None
+                if art is not None:
+                    ind = line.find("(")
+                    fname = line[:ind]
+                    tempargs = line[ind + 1:-1].replace("..", " ").split(",")
+                    args = [tempargs[0]]
+                    for i in range(1, len(tempargs)):
+                        if len(tempargs) > 0 and tempargs[i-1][-1] == "\\" and (len(tempargs) > 2 and (tempargs[i-1][-2] != "\\" or (len(tempargs) > 3 and tempargs[i-1][-2] == "\\" and tempargs[i-1][-3] == "\\"))):
+                            args[-1] += "," + tempargs[i]
+                        else:
+                            args.append(tempargs[i])
+                    args = [x.replace("\\,", ",").replace("\\\\", "\\") for x in args]
+                    if len(args) > 0:
+                        if args[0] == "":
+                            args[0] = " "
+
+                    if fname == "new":
+                        if len(args) < 3:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            background = " "
+                            if len(args) > 3:
+                                background = args[3]
+                            if len(background) > 1:
+                                result.log("background must be a single character!")
+                            else:
+                                if "." in args[0] or "(" in args[0] or ")" in args[0] or "," in args[0] or "[" in args[0] or "]" in args[0]:
+                                    result.log("invalid object name, cannot contain the characters: .,()")
+                                else:
+                                    result.arts[args[0]] = Art(int(args[1]), int(args[2]))
+                    elif fname == "copy":
+                        if len(args) < 1:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            if "." in args[0] or "(" in args[0] or ")" in args[0] or "," in args[0] or "[" in args[
+                                0] or "]" in args[0]:
+                                result.log("invalid object name, cannot contain the characters: .,()")
+                            else:
+                                area = None
+                                if len(args) > 1:
+                                    area = [int(x) for x in args[2:]]
+                                result.arts[args[0]] = art.copy(area)
+                    elif fname == "rename":
+                        if len(args) < 1:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            if "." in args[0] or "(" in args[0] or ")" in args[0] or "," in args[0] or "[" in args[
+                                0] or "]" in args[0]:
+                                result.log("invalid object name, cannot contain the characters: .,(), line: '" + line + "'")
+                            else:
+                                if args[0] != artname:
+                                    if artname != "main":
+                                        result.arts[args[0]] = art
+                                        del result.arts[artname]
+                                    else:
+                                        result.log("cannot rename the main object: '" + line + "'")
+                                else:
+                                    result.log("cannot rename an object to its own name: '" + line + "'")
+                    elif fname == "rect":
+                        if len(args) < 5:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            border = 0
+                            if len(args) > 5:
+                                border = float(args[5])
+                            art.rect(args[0], [int(args[1]), int(args[2]), int(args[3]), int(args[4])], border)
+                    elif fname == "square":
+                        if len(args) < 4:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            border = 0
+                            if len(args) > 4:
+                                border = float(args[4])
+                            art.square(args[0], [int(args[1]), int(args[2])], int(args[3]), border)
+                    elif fname == "circle":
+                        if len(args) < 4:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            border = 0
+                            if len(args) > 4:
+                                border = float(args[4])
+                            art.circle(args[0], [int(args[1]), int(args[2])], int(args[3]), border)
+                    elif fname == "line":
+                        if len(args) < 5:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            border = 0
+                            if len(args) > 5:
+                                border = float(args[5])
+                            art.line(args[0], [int(args[1]), int(args[2])], [int(args[3]), int(args[4])], border)
+                    elif fname == "triangle":
+                        if len(args) < 7:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            border = 0
+                            if len(args) > 7:
+                                border = float(args[7])
+                            art.triangle(args[0], [int(args[1]), int(args[2])], [int(args[3]), int(args[4])],
+                                         [int(args[5]), int(args[6])], border)
+                    elif fname == "quad":
+                        if len(args) < 9:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            border = 0
+                            if len(args) > 9:
+                                border = float(args[7])
+                            art.quad(args[0], [int(args[1]), int(args[2])], [int(args[3]), int(args[4])],
+                                     [int(args[5]), int(args[6])], [int(args[7]), int(args[8])], border)
+                    elif fname == "polygon":
+                        if len(args) < 3:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            border = 0
+                            if len(args) % 2 == 0:
+                                border = float(args[-1])
+                                sec = args[1:-1]
+                            else:
+                                sec = args[1:]
+                            rps = [int(x) for x in sec]
+                            ps = []
+                            for i in range(0, len(rps), 2):
+                                ps.append([rps[i], rps[i + 1]])
+                            art.polygon(args[0], ps, border)
+                    elif fname == "lines":
+                        if len(args) < 3:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            rps = [int(x) for x in sec]
+                            ps = []
+                            for i in range(0, len(rps), 2):
+                                ps.append([rps[i], rps[i + 1]])
+                            art.lines(args[0], ps, float(args[-1]))
+                    elif fname == "fill":
+                        if len(args) < 1:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            art.fill(args[0])
+                    elif fname == "set":
+                        if len(args) < 3:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            art.set(int(args[1]), int(args[2]), args[0])
+                    elif fname == "gradient":
+                        if len(args) < 5:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            area = None
+                            if len(args) > 5:
+                                area = [int(x) for x in args[5:]]
+                            art.gradient(args[0], [int(args[1]), int(args[2])], [int(args[3]), int(args[4])], area)
+                    elif fname == "replace":
+                        if len(args) < 2:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            bychar = False
+                            if args[-1].startswith("bychar="):
+                                bychar = bool(args[-1][7:])
+                                args = args[:-1]
+                            area = None
+                            if len(args) > 2:
+                                area = [int(x) for x in args[2:]]
+                            art.replace(args[0], args[1], area, bychar=bychar)
+                    elif fname == "swap":
+                        if len(args) < 2:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            bychar = False
+                            if args[-1].startswith("bychar="):
+                                bychar = bool(args[-1][7:])
+                                args = args[:-1]
+                            area = None
+                            if len(args) > 2:
+                                area = [int(x) for x in args[2:]]
+                            art.swap(args[0], args[1], area, bychar=bychar)
+                    elif fname == "blit":
+                        if len(args) < 1:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            if args[0] in result.arts:
+                                if args[0] != artname:
+                                    dest = [0, 0]
+                                    area = None
+                                    alpha = " "
+                                    if args[-1].startswith("alpha="):
+                                        alpha = args[-1][6:]
+                                        args = args[:-1]
+                                    if len(args) > 2:
+                                        dest = [int(args[1]), int(args[2])]
+                                    if len(args) > 3:
+                                        area = [int(x) for x in args[3:]]
+                                    art.blit(result.arts[args[0]], dest, area, alpha)
+                                else:
+                                    result.log("cannot blit an object on to itself: '" + line + "'")
+                            else:
+                                result.log("invalid object name: '" + line + "'")
+                    elif fname == "log":
+                        result.log(line[line.find("(")+1:line.rfind(")")])
+                    else:
+                        result.log("unrecognized function '" + fname + "' on line '" + line + "'")
+                else:
+                    result.log("invalid art object '" + artname + "' on line '" + line + "'")
+            else:
+                result.log("invalid syntax: '" + line + '"')
+        except:
+            result.log("error encountered on line '" + line + "'")
+            traceback.print_exc()
+    return result
+

@@ -1,5 +1,4 @@
-import traceback, random, asyncio, market, aiohttp, json
-from textart import Art
+import traceback, random, asyncio, market, aiohttp, json, textart
 from difflib import SequenceMatcher
 from os import listdir
 
@@ -230,6 +229,7 @@ class SpeedTypeGame:
             if highest_member is None or charcount > highest_score:
                 highest_member = member
                 highest_score = charcount
+            del self.bot.market.games["speedtype"][member.id]
         lines += "\n```\n"
         if len(self.accepts) > 1:
             lines += highest_member + " was the winner, with " + str(highest_score) + " characters correct!"
@@ -244,6 +244,7 @@ class SpeedTypeGame:
 
     def check_status(self):
         if len(self.members) == len(self.accepts):
+            print(len(self.members))
             if len(self.accepts) > 0:
                 return 2
             return 1
@@ -254,7 +255,8 @@ class SpeedTypeGame:
         for mem in self.members:
             if mem.id == userid:
                 member = mem
-        if member is not None:
+                break
+        if member is not None and member not in self.accepts:
             self.accepts.append(member)
             return True
         return False
@@ -264,9 +266,10 @@ class SpeedTypeGame:
         for mem in self.members:
             if mem.id == userid:
                 member = mem
+                break
         if member is not None:
             self.members.remove(member)
-            del self.bot.games["speedtype"][userid]
+            del self.bot.market.games["speedtype"][userid]
             return True
         return False
 
@@ -444,7 +447,7 @@ def fun_handle(bot, msg, cmd):
                         if game.in_progress:
                             yield from bot.client.send_message(msg.channel, "The game is in progress! Go to DM to play (quick!)")
                         else:
-                            if game.accept(msg.author.id):
+                            if game.decline(msg.author.id):
                                 yield from bot.client.send_message(msg.channel, "Declined game invite!")
                                 status = game.check_status()
                                 if status == 2:
@@ -518,99 +521,11 @@ def fun_handle(bot, msg, cmd):
                 width, height = int(cmd[1]), int(cmd[2])
                 if 0 < width < 61:
                     if 0 < height < 31:
-                        art = Art(width, height)
                         rawcode = [x.replace(" ", "") for x in " ".join(cmd[3:]).replace("```", "").split("\n") if x != ""]
-                        log = []
-                        for line in rawcode:
-                            if "(" in line and line[-1] == ")":
-                                ind = line.find("(")
-                                fname = line[:ind]
-                                args = line[ind+1:-1].split(",")
-                                if args[0] == "":
-                                    args[0] = " "
-                                if fname == "rect":
-                                    if len(args) < 5:
-                                        log.append("not enough arguments: '" + line + "'")
-                                    else:
-                                        border = 0
-                                        if len(args) > 5:
-                                            border = float(args[5])
-                                        art.rect(args[0], [int(args[1]), int(args[2]), int(args[3]), int(args[4])], border)
-                                elif fname == "square":
-                                    if len(args) < 4:
-                                        log.append("not enough arguments: '" + line + "'")
-                                    else:
-                                        border = 0
-                                        if len(args) > 4:
-                                            border = float(args[4])
-                                        art.square(args[0], [int(args[1]), int(args[2])], int(args[3]), border)
-                                elif fname == "circle":
-                                    if len(args) < 4:
-                                        log.append("not enough arguments: '" + line + "'")
-                                    else:
-                                        border = 0
-                                        if len(args) > 4:
-                                            border = float(args[4])
-                                        art.circle(args[0], [int(args[1]), int(args[2])], int(args[3]), border)
-                                elif fname == "line":
-                                    if len(args) < 5:
-                                        log.append("not enough arguments: '" + line + "'")
-                                    else:
-                                        border = 0
-                                        if len(args) > 5:
-                                            border = float(args[5])
-                                        art.line(args[0], [int(args[1]), int(args[2])], [int(args[3]), int(args[4])], border)
-                                elif fname == "triangle":
-                                    if len(args) < 7:
-                                        log.append("not enough arguments: '" + line + "'")
-                                    else:
-                                        border = 0
-                                        if len(args) > 7:
-                                            border = float(args[7])
-                                        art.triangle(args[0], [int(args[1]), int(args[2])], [int(args[3]), int(args[4])], [int(args[5]), int(args[6])], border)
-                                elif fname == "quad":
-                                    if len(args) < 9:
-                                        log.append("not enough arguments: '" + line + "'")
-                                    else:
-                                        border = 0
-                                        if len(args) > 9:
-                                            border = float(args[7])
-                                        art.quad(args[0], [int(args[1]), int(args[2])], [int(args[3]), int(args[4])], [int(args[5]), int(args[6])], [int(args[7]), int(args[8])], border)
-                                elif fname == "polygon":
-                                    if len(args) < 3:
-                                        log.append("not enough arguments: '" + line + "'")
-                                    else:
-                                        border = 0
-                                        if len(args) % 2 == 0:
-                                            border = float(args[-1])
-                                            sec = args[1:-1]
-                                        else:
-                                            sec = args[1:]
-                                        rps = [int(x) for x in sec]
-                                        ps = []
-                                        for i in range(0, len(rps), 2):
-                                            ps.append([rps[i], rps[i+1]])
-                                        art.polygon(args[0], ps, border)
-                                elif fname == "lines":
-                                    if len(args) < 3: log.append("not enough arguments: '" + line + "'")
-                                    else:
-                                        rps = [int(x) for x in sec]
-                                        ps = []
-                                        for i in range(0, len(rps), 2):
-                                            ps.append([rps[i], rps[i + 1]])
-                                        art.lines(args[0], ps, float(args[-1]))
-                                elif fname == "fill":
-                                    if len(args) < 1: log.append("not enough arguments: '" + line + "'")
-                                    else:
-                                        art.fill(args[0])
-                                else:
-                                    log.append("unrecognized function '" + fname + "' on line '" + line + "'")
-                            else:
-                                log.append("invalid syntax: '" + line + '"')
-                        lines = art.text()
-                        if len(log) > 0:
-                            lines += "\n```\n" + "\n".join(log) + "\n```"
-                        yield from bot.client.send_message(msg.channel, lines)
+                        result = textart.art_script(width, height, rawcode)
+                        yield from bot.client.send_message(msg.channel, result.art().text())
+                        if len(result.get_log()) > 0:
+                            yield from bot.client.send_message(msg.channel, "\n```\n" + "\n".join(result.get_log()) + "\n```")
                     else:
                         yield from bot.client.send_message(msg.channel, "Invalid height, must be from 1 and 20")
                 else:

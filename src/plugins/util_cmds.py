@@ -346,7 +346,7 @@ def util_handle(bot, msg, cmd):
                 members = 0
                 for server in bot.client.servers:
                     members += len(server.members)
-                yield from bot.client.send_message(msg.channel, bot.name + " is in **" + str(len(bot.client.servers)) + "** servers, with **" + str(members) + "** members and **" + str(len(bot.market.factories)) + "** registered players!")
+                yield from bot.client.send_message(msg.channel, bot.name + " is in **" + str(len(bot.client.servers)) + "** servers, with **" + str(members) + "** members and **" + str(len(bot.market.factories)) + "** registered players! **" + str(bot.commands_used) + "** commands have been used since the last restart.")
             elif cmd[0] == "ud":
                 search = "+".join(cmd[1:])
                 with aiohttp.Timeout(10):

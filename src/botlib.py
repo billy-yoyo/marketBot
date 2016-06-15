@@ -46,6 +46,7 @@ class Bot:
         self.start_time = time.time()
         self.setup = False
         self.next_status_change = 0
+        self.commands_used = 0
 
     def update_status(self, user):
         ctime = time.time()
@@ -129,6 +130,7 @@ class Bot:
                 if command is not None:
                     handle = self.handle_command(role, command)
                     if handle is not None:
+                        self.commands_used += 1
                         yield from handle(self, message, command)
                         return True
             return False
