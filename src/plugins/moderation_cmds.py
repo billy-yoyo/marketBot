@@ -146,6 +146,23 @@ def moder_handle(bot, msg, cmd):
                         yield from bot.client.send_message(msg.channel, "Bot messages will now be removed after " + str(int(cmd[1])) + " seconds")
                 else:
                     yield from bot.client.send_message(msg.channel, "You don't have permission to use that command!")
+            elif cmd[0] == "pm":
+                if bot.is_me(msg):
+                    user = None
+                    if len(msg.mentions) > 0:
+                        user = msg.mentions[0]
+                    elif market.is_number(cmd[1]):
+                        for server in bot.client.servers:
+                            for member in server.members:
+                                if member.id == cmd[1]:
+                                    user = member
+                    if user is not None:
+                        msg = "[ADMIN MESSAGE] " + " ".join(cmd[2:])
+                        yield from bot.client.send_message(user, msg)
+                    else:
+                        yield from bot.client.send_message(msg.channel, "Invalid user, must be an ID or a mention")
+                else:
+                    yield from bot.client.send_message(msg.channel, "Only the admins can use that command!")
     except (IndexError, ValueError, KeyError):
         yield from bot.client.send_message(msg.channel, formatting)
         traceback.print_exc()
@@ -162,3 +179,4 @@ def setup(bot, help_page, filename):
     bot.register_command("ignore", moder_handle, moder_handle_l)
     bot.register_command("unignore", moder_handle, moder_handle_l)
     bot.register_command("cleanup", moder_handle, moder_handle_l)
+    bot.register_command("pm", moder_handle, moder_handle_l)

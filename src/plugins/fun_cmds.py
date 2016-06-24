@@ -1,4 +1,5 @@
-import traceback, random, asyncio, market, aiohttp, json, textart
+import traceback, random, asyncio, market, aiohttp, json, textart, corruptfun2, os
+from PIL import Image
 from difflib import SequenceMatcher
 from os import listdir
 
@@ -530,6 +531,38 @@ def fun_handle(bot, msg, cmd):
                         yield from bot.client.send_message(msg.channel, "Invalid height, must be from 1 and 20")
                 else:
                     yield from bot.client.send_message(msg.channel, "Invalid width, must be from 1 and 20")
+            elif cmd[0] == "ker":
+                if bot.is_me(msg):
+                    formatting = bot.prefix + "ker [file_in] [file_out] [coef] [kernel]"
+                    file_in = "corrupt/" + cmd[1]
+                    file_out = "corrupt/ " + cmd[2]
+                    file_final = "corrupt/" + cmd[2]
+                    if not file_in.endswith(".bmp"):
+                        file_in += ".bmp"
+                    if not file_out.endswith(".bmp"):
+                        file_out += ".bmp"
+                        file_final += ".png"
+                    else:
+                        file_final = file_final[:-4] + ".png"
+                    coef = float(cmd[3])
+                    rawker = [[float(y) for y in x.split(" ") if y != ""] for x in " ".join(cmd[4:]).replace("```", "").replace(",", "").split("\n") if x.replace(" ", "") != ""]
+                    print(rawker)
+                    if len(rawker) <= 5 and len(rawker[0]) <= 5:
+                        try:
+                            yield from bot.client.send_typing(msg.channel)
+                            ker = corruptfun2.Kernal(rawker, coef=coef)
+                            corruptfun2.run(file_in, file_out, ker, doprint=False)
+                            im = Image.open(file_out)
+                            im.save(file_final, "PNG")
+                            yield from bot.client.send_file(msg.channel, file_final)
+                            os.remove(file_out)
+                            os.remove(file_final)
+                        except corruptfun2.InvalidGrid:
+                            yield from bot.client.send_message(msg.channel, "Invalid kernel, must be an odd square matrix")
+                    else:
+                        yield from bot.client.send_message(msg.channel, "Maximum kernel size is 5x5!")
+                else:
+                    yield from bot.client.send_message(msg.channel, "This command is still in development and can only be used by admins for now, sorry!")
             #elif cmd[0] == "profile":
             #    if len(cmd) > 1 and cmd[1] == "clean":
             #        if bot.is_me(msg):
@@ -612,3 +645,4 @@ def setup(bot, help_page, filename):
     bot.register_command("cat", fun_handle, fun_handle_l)
     bot.register_command("poem", fun_handle, fun_handle_l)
     bot.register_command("art", fun_handle, fun_handle_l)
+    bot.register_command("ker", fun_handle, fun_handle_l)

@@ -74,7 +74,7 @@ def run(restarter, restart_source=None):
     test_role = botlib.Role(all=True)
     print("Finding bot token...")
     token = None
-    f = open("credentials.txt")
+    f = open("credentials_test.txt")
     for line in f:
         token = line
         break

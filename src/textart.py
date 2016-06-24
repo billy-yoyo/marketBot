@@ -258,6 +258,13 @@ class Art:
     def polygon(self, v, ps, border=0):
         if len(v) == 1:
             if border == 0:
+                # method for rendering a polygon:
+                #   first check if the polygon is a triangle or a quadrilateral,
+                #   if it is we know how to render it and can stop
+                #   otherwise, split the polygon in to some triangles then define a new polygon by the 'outside' points of these triangles
+                #   render the triangles we found, then render the polygon found.
+                #   since at least one triangle can be made for a polygon with more than 4 points, the size of the next polygon will always decrease
+                #   therefor by induction it will eventually reduce to something we can render (a quad, triangle, line or a point)
                 if len(ps) == 3:
                     self.triangle(v, *ps)
                     return True
@@ -300,6 +307,29 @@ class Art:
                 sx, sy, ex, ey = self.clampx(area[0]), self.clampy(area[1]), self.clampx(area[0] + area[2]), self.clampy(area[1] + area[3])
             else:
                 return False
+
+            # basis for finding the perpendicular distance:
+            #
+            # given two points A and B, with respective lines La Lb defined by the lines perpendicular to AB which pass through A and B respectively
+            # we then want to find the perpendicular distances x1 and x2 to La and Lb respectively from a point P
+            # we also presume that P lies in between La and Lb (PA intercepts La a A and PB intercepts Lb at B)
+            # (in practice we actually have to check, which I do using the cosine rule on the triangle ABP with angle <PAB and angle <ABP)
+            #
+            # let d1 and d2 be the distances from P to A and P to B respectively,
+            # let a be the length of the orthogonal projection of PA on to La (which must be the same as PB on to Lb)
+            # let l be the distance from A to B
+            # therefor d1^2 = a^2 + x1^2 and d2^2 = a^2 + x2^2
+            # also x1 + x2 = l by definition (given our assumtions)
+            #
+            # so from the first set of equations we get d1^2 - x1^2 = d2^2 - x2^2
+            # now substitute x2 = l - x1 to get
+            # d1^2 - x1^2 = d2^2 - x1^2 + 2x1l - l^2
+            # rearrange to get x1 = (l/2) + (d1^2 - d2^2)/2l
+            #
+            # now using x1 we can find which character to use by doing:
+            #  |_(x1/l) * c _| where c is the amount of characters we're using
+            #
+            # and we're done, now we know which character to use!
 
             # the square of the distance from the start to the end
             total_dist_sq = self._sq_length(*self._minus(start, end))

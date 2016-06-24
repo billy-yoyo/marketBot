@@ -789,10 +789,16 @@ def market_handle(bot, msg, cmd):
                         elif cmd[2] == "info":
                             formatting = bot.prefix + "factory my info [factory_name]"
                             name = " ".join(cmd[3:])
-                            factory = bot.market.get_factory(user_id, name)
-                            if user_msg_name != "Your":
-                                user_msg_name += "'s"
-                            yield from bot.client.send_message(msg.channel, factory.get_info())
+                            if name != "":
+                                factory = bot.market.get_factory(user_id, name)
+                                if factory is not None:
+                                    if user_msg_name != "Your":
+                                        user_msg_name += "'s"
+                                    yield from bot.client.send_message(msg.channel, factory.get_info())
+                                else:
+                                    yield from bot.client.send_message(msg.channel, ":factory: You don't have a factory named '" + name + "'")
+                            else:
+                                yield from bot.client.send_message(msg.channel, ":factory: No factory name given, use m$factory my info [name]")
                         else:
                             raise IndexError
                     else:
@@ -971,11 +977,8 @@ def market_handle(bot, msg, cmd):
                     yield from bot.client.send_message(msg.channel, "\n".join(lines))
                 else:
                     yield from bot.client.send_message(msg.author, "\n".join(lines))
-            elif cmd[0] == "join":
-                if len(cmd) > 1 and cmd[1] == "here":
-                    yield from bot.client.send_message(msg.channel, "To add " + bot.name + " to your server, use this link: https://discordapp.com/oauth2/authorize?client_id=187857778583404545&scope=bot&permissions=0")
-                else:
-                    yield from bot.client.send_message(msg.author, "To add " + bot.name + " to your server, use this link: https://discordapp.com/oauth2/authorize?client_id=187857778583404545&scope=bot&permissions=0")
+            elif cmd[0] == "join" or cmd[0] == "invite":
+                yield from bot.client.send_message(msg.channel, "To add " + bot.name + " to your server, use this link: https://discordapp.com/oauth2/authorize?client_id=187857778583404545&scope=bot&permissions=0")
             elif cmd[0] == "ticket":
                 formatting = bot.prefix + "ticket message|request|help|error|ban [message]"
                 if cmd[1] == "*ban":
@@ -1039,10 +1042,7 @@ def market_handle(bot, msg, cmd):
                 else:
                     yield from bot.client.send_message(msg.channel, "You are banned from sending tickets, use " + bot.prefix + "ticket ban <message> to contest this ban")
             elif cmd[0] == "server":
-                if len(cmd) > 1 and cmd[1] == "here":
-                    yield from bot.client.send_message(msg.channel, "https://discord.gg/013GE1ZeT5ntIaWCW")
-                else:
-                    yield from bot.client.send_message(msg.author, "https://discord.gg/013GE1ZeT5ntIaWCW")
+                yield from bot.client.send_message(msg.channel, "https://discord.gg/013GE1ZeT5ntIaWCW")
             elif cmd[0] == "items":
                 formatting = bot.prefix + "items set|del|get|list [item] [item_type]"
                 if bot.is_me(msg) or cmd[1] == "get" or (cmd[1] == "list" and len(cmd) > 2):
@@ -1318,6 +1318,7 @@ def setup(bot, help_page, filename):
 
     help_page.register("guide", "", "gives you tips on what you should be working towards next", root="misc")
     help_page.register("join", "", "Gives you a bot invite link so you can get " + bot.name + " in your servers", root="misc")
+    help_page.register("invite", "", "alias for join", root="misc")
     help_page.register("ticket", "message|request|help|error|ban [message]", "commands for sending a ticket to the admins", root="misc")
     help_page.register("server", "", "gives you an invite link to the offical MarketBot server", root="misc")
     help_page.register("ping", "", "tells you the bots ping to your server", root="misc")
@@ -1421,6 +1422,7 @@ def setup(bot, help_page, filename):
     bot.register_command("trade", market_handle, market_handle_l)
     bot.register_command("info", market_handle, market_handle_l)
     bot.register_command("join", market_handle, market_handle_l)
+    bot.register_command("invite", market_handle, market_handle_l)
     bot.register_command("ticket", market_handle, market_handle_l)
     bot.register_command("register", market_handle, market_handle_l)
     bot.register_command("unregister", market_handle, market_handle_l)
