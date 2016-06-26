@@ -1,11 +1,22 @@
 import threading, math, copy, json, os, shutil, datetime, time, traceback, random, discord
 
+
 def is_number(s):
     try:
         float(s)
         return True
     except ValueError:
         return False
+
+
+def word_list_format(words):
+    if len(words) == 0:
+        return ""
+    elif len(words) == 1:
+        return words[0]
+    else:
+        return ", ".join(words[:-1]) + " and " + words[-1]
+
 
 class Factory:
     FACTORY_UPGRADES = [
@@ -607,8 +618,9 @@ class Market:
         self.news = {}
         self.games = {
             "speedtype": {},
-
+            "stories": {}
         }
+        self.stories = {}
         self.riddles = {}
         self.chests = {}
         self.tags = {}
@@ -799,6 +811,15 @@ class Market:
             traceback.print_exc()
             print("[SAVE ERROR] Failed to save factories")
 
+        try:
+            f = open("data/" + dir_suffix + "stories.json", "w")
+            json.dump(self.games["stories"], f)
+            if not f.closed:
+                f.close()
+        except:
+            traceback.print_exc()
+            print("[SAVE ERROR] Failed to save stories")
+
         if dir_suffix != "":
             print("[BACKUP] Backed up, ID: " + dir_suffix + ", Save ID: " + str(self.inventory["save_id"]))
         else:
@@ -829,6 +850,19 @@ class Market:
                     data = json.load(f)
                     for f_id in data:
                         Factory.load_from_json(self, data[f_id])
+                    if not f.closed:
+                        f.close()
+                else:
+                    print("[LOAD ERROR] Couldn't find file " + file_name)
+            except:
+                traceback.print_exc()
+                print("[LOAD ERROR] Failed to load factories")
+
+            try:
+                file_name = "data/" + dir_suffix + "stories.json"
+                if os.path.exists(file_name):
+                    f = open(file_name, "r")
+                    self.games["stories"] = json.load(f)
                     if not f.closed:
                         f.close()
                 else:

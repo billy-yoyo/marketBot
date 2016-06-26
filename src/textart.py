@@ -117,6 +117,70 @@ class Art:
         for y in range(self.height):
             self.grid[y] = v * self.width
 
+    # writes some text on to the text art
+    #   s = the string you want to render on to the art
+    #   pos = the position you want to render the string at
+    #   wrap = the text-wrap mode:
+    #        0 = no wrapping, text outside the canvas is ignored
+    #        1 = in-line wrapping, text that falls outside the canvas wraps round to the beginning of the line (if it can)
+    #        2 = new-line wrapping, text that falls outside the canvase is put on a new line at the same x value
+    def write(self, s, pos, wrap=0):
+        if type(s) is str:
+            s = s.split("\n")
+        if type(s) is list:
+            ooy = 0
+            for oy in range(len(s)):
+                y = oy + pos[1] + ooy
+                if wrap == 0: # no wrap
+                    w = min(self.width - pos[0], len(s[oy]))
+                    self.grid[y] = self.grid[y][:pos[0]] + s[oy][:w] + self.grid[y][pos[0]+w:]
+                elif wrap == 1: # wrap around line
+                    w1 = min(self.width - pos[0], len(s[oy]))
+                    w2 = min(self.width - w1, len(s[oy]) - w1)
+                    self.grid[y] = self.grid[y][:pos[0]] + s[oy][:w1] + self.grid[y][pos[0]+w1:]
+                    if w2 > 0:
+                        self.grid[y] = s[oy][w1:w1+w2] + self.grid[y][w2:]
+                elif wrap == 2: # wrap to new line
+                    cs = s[oy]
+                    w = min(self.width - pos[0], len(cs))
+                    while w > 0:
+                        y = oy + pos[1] + ooy
+                        self.grid[y] = self.grid[y][:pos[0]] + cs[:w] + self.grid[y][pos[0]+w:]
+                        cs = cs[w:]
+                        w = min(self.width - pos[0], len(cs))
+                        ooy += 1
+                else: # invalid wrap setting
+                    return False
+            return True
+        return False
+
+    # draws a box of that text, offset incrementally for each line
+    #    text = the text used to create the box
+    #    area = the area to draw the gradient in, if None then it's the whole art. Defaults to None.
+    def box(self, text, area=None):
+        if area is None:
+            sx, sy, ex, ey = 0, 0, self.width, self.height
+        elif len(area) == 2:
+            sx, sy, ex, ey = self.clampx(area[0]), self.clampy(area[1]), self.width, self.height
+        elif len(area) == 3:
+            sx, sy, ex, ey = self.clampx(area[0]), self.clampy(area[1]), self.clampx(area[0] + area[2]), self.clampy(
+                area[1] + area[2])
+        elif len(area) == 4:
+            sx, sy, ex, ey = self.clampx(area[0]), self.clampy(area[1]), self.clampx(area[0] + area[2]), self.clampy(
+                area[1] + area[3])
+        else:
+            return False
+
+        rwidth = ex - sx
+
+        repeat = text
+        while len(repeat) < rwidth:
+            repeat += text
+        repeat = repeat[:rwidth]
+        for y in range(sy, ey):
+            self.grid[y] = self.grid[y][:sx] + repeat + self.grid[y][ex:]
+            repeat = repeat[-1] + repeat[0:-1]
+
     # draw a rectangle on to art
     #   v = the character to draw, must be a single character
     #   rect = a list [x, y, width, height] describing the rectangle
@@ -611,7 +675,7 @@ def art_script(width, height, lines):
                 artname = "main"
                 if "." in line and line.find(".") < line.find("("):
                     artsplit = line.split(".")
-                    line = artsplit[1].replace(" ", "")
+                    line = ".".join(artsplit[1:]).replace(" ", "")
                     artname = artsplit[0]
                     if artsplit[0] in result.arts:
                         art = result.arts[artsplit[0]]
@@ -766,6 +830,26 @@ def art_script(width, height, lines):
                             if len(args) > 5:
                                 area = [int(x) for x in args[5:]]
                             art.gradient(args[0], [int(args[1]), int(args[2])], [int(args[3]), int(args[4])], area)
+                    elif fname == "write":
+                        if len(args) < 3:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            wrap = 0
+                            if args[-1].startswith("wrap="):
+                                wrap = int(args[-1][5:])
+                                args = args[:-1]
+                            if 0 <= wrap <= 2:
+                                art.write(args[0], [int(args[1]), int(args[2])], wrap)
+                            else:
+                                result.log("invalid wrap, must be 0, 1 or 2: '" + line + "'")
+                    elif fname == "box":
+                        if len(args) < 1:
+                            result.log("not enough arguments: '" + line + "'")
+                        else:
+                            area = None
+                            if len(args) > 2:
+                                area = [int(x) for x in args[2:]]
+                            art.box(args[0], area)
                     elif fname == "replace":
                         if len(args) < 2:
                             result.log("not enough arguments: '" + line + "'")
@@ -823,4 +907,3 @@ def art_script(width, height, lines):
             result.log("error encountered on line '" + line + "'")
             traceback.print_exc()
     return result
-

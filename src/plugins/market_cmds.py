@@ -1,4 +1,4 @@
-import market, time, math, traceback, datetime, asyncio, discord
+import market, time, math, traceback, datetime, asyncio, discord, styload
 from os import listdir
 from os.path import isfile, join
 
@@ -1236,6 +1236,20 @@ def setup(bot, help_page, filename):
 
     bot.market = market.Market()
     print("Created market")
+
+    onlyfiles = [f for f in listdir("stories/") if isfile(join("stories/", f))]
+    loaded = 0
+    for filename in onlyfiles:
+        fname = filename[:-4]
+        if "__init__" not in filename and ".sty" in filename:
+            print("importing " + filename + "...")
+            try:
+                bot.market.stories[fname] = styload.load("stories/" + filename)
+                print("Loaded story " + fname)
+                loaded += 1
+            except():
+                print("ERROR: Failed to load story " + filename)
+    print("Done, loaded " + str(loaded) + " stories!")
 
     help_page.register("core", "", "", hidden=True, header=[":notebook_with_decorative_cover:Core commands:", ":notebook_with_decorative_cover: Please note these commands are in beta and may fail sometimes, if they do please send me a ticket using %p%ticket error [message]"])
     help_page.register("misc", "", "", hidden=True, header=":notebook_with_decorative_cover:Miscellaneous commands:")

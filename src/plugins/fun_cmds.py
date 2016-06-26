@@ -1,4 +1,4 @@
-import traceback, random, asyncio, market, aiohttp, json, textart, corruptfun2, os
+import traceback, random, asyncio, market, aiohttp, json, textart, corruptfun2, os, copy, styload
 from PIL import Image
 from difflib import SequenceMatcher
 from os import listdir
@@ -273,6 +273,12 @@ class SpeedTypeGame:
             del self.bot.market.games["speedtype"][userid]
             return True
         return False
+
+def update_story(bot, msg):
+    game = bot.market.games["stories"][msg.author.id]
+    card = game["story"][game["current"]]
+    yield from bot.client.send_message(msg.channel, "\n```" + "\n".join(styload.get_text(game["story"], game["current"])) + "```\n" + "\n\n".join(["`" + option + "`: \n`>  " + "\n>  ".join(styload.get_text(game["story"], game["current"], option)) + "`" for option in card["options_order"] if card["options"][option]["enabled"]]))
+
 
 def fun_handle(bot, msg, cmd):
     formatting = bot.prefix + "help to see help!"
@@ -563,6 +569,73 @@ def fun_handle(bot, msg, cmd):
                         yield from bot.client.send_message(msg.channel, "Maximum kernel size is 5x5!")
                 else:
                     yield from bot.client.send_message(msg.channel, "This command is still in development and can only be used by admins for now, sorry!")
+            elif cmd[0] == "story":
+                formatting = bot.prefix + "story "
+                if not "stories" in bot.market.games:
+                    bot.market.games["stories"] = {}
+                if cmd[1] == "new":
+                    if not msg.author.id in bot.market.games["stories"]:
+                        name = " ".join(cmd[2:])
+                        if name in bot.market.stories:
+                            bot.market.games["stories"][msg.author.id] = {"story": copy.deepcopy(bot.market.stories[name]),
+                                                                          "current": "main"}
+                            yield from bot.client.send_message(msg.channel, "Story created, used m$story [option] to select an option, or m$story add {mentions} to add other people to the story\n")
+                            yield from update_story(bot, msg)
+                        else:
+                            yield from bot.client.send_message(msg.channel, "No story named " + name)
+                    else:
+                        yield from bot.client.send_message(msg.channel, "You're already in a story! use m$end to quit the story (Other people added can continue playing)")
+                elif cmd[1] == "end":
+                    if msg.author.id in bot.market.games["stories"]:
+                        del bot.market.games["stories"][msg.author.id]
+                        yield from bot.client.send_message(msg.channel, "You left the current story.")
+                    else:
+                        yield from bot.client.send_message(msg.channel, "You're not in a story, use m$new [name] to create a new one")
+                elif cmd[1] == "reload":
+                    if bot.is_me(msg):
+                        name = " ".join(cmd[2:])
+                        if os.path.exists("stories/" + name + ".sty"):
+                            bot.market.stories[name] = styload.load("stories/" + name + ".sty")
+                            yield from bot.client.send_message(msg.channel, "Reloaded story " + name)
+                        else:
+                            yield from bot.client.send_message(msg.channel, "Couldn't find a story named " + name + "!")
+                    else:
+                        yield from bot.client.send_message(msg.channel, "Only the admins can use that command!")
+                elif cmd[1] == "add":
+                    if msg.author.id in bot.market.games["stories"]:
+                        if len(msg.mentions) > 0:
+                            failed = []
+                            added = []
+                            for member in msg.mentions:
+                                if not member.id in bot.market.games["stories"]:
+                                    bot.market.games["stories"][member.id] = bot.market.games["stories"][msg.author.id]
+                                    added.append(member.name)
+                                else:
+                                    failed.append(member.name)
+                            if len(failed) == 0:
+                                yield from bot.client.send_message(msg.channel, "Added " + market.word_list_format(added) + " to the story.")
+                            else:
+                                yield from bot.client.send_message(msg.channel, "Added " + market.word_list_format(added) + " to the story. Couldn't add : " + market.word_list_format(failed) + " as they are already in other stories")
+                        else:
+                            yield from bot.client.send_message(msg.channel, "You must mention at least one person!")
+                    else:
+                        yield from bot.client.send_message(msg.channel,
+                                                           "You're not in a story, use m$new [name] to create a new one")
+                elif cmd[1] == "repeat":
+                    if msg.author.id in bot.market.games["stories"]:
+                        yield from update_story(bot, msg)
+                    else:
+                        yield from bot.client.send_message(msg.channel, "You're not in a story, use m$new [name] to create a new one")
+                elif msg.author.id in bot.market.games["stories"]:
+                    option = " ".join(cmd[1:])
+                    game = bot.market.games["stories"][msg.author.id]
+                    if option in game["story"][game["current"]]["options_order"] and game["story"][game["current"]]["options"][option]["enabled"]:
+                        game["current"] = styload.run_option(game["story"], game["current"], option)
+                        yield from update_story(bot, msg)
+                    else:
+                        yield from bot.client.send_message(msg.channel, "Invalid option, must be one of: " + ", ".join([option for option in game["story"][game["current"]]["options_order"] if game["story"][game["current"]]["options"][option]["enabled"]]) + ". Use m$repeat to see the story text again")
+                else:
+                    yield from bot.client.send_message(msg.channel, "You're not in a story, use m$new [name] to create a new one")
             #elif cmd[0] == "profile":
             #    if len(cmd) > 1 and cmd[1] == "clean":
             #        if bot.is_me(msg):
@@ -646,3 +719,4 @@ def setup(bot, help_page, filename):
     bot.register_command("poem", fun_handle, fun_handle_l)
     bot.register_command("art", fun_handle, fun_handle_l)
     bot.register_command("ker", fun_handle, fun_handle_l)
+    bot.register_command("story", fun_handle, fun_handle_l)

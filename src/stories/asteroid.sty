@@ -1,0 +1,744 @@
+$int crew=1000
+$float hull=100
+$bool repaired=False
+$bool escort=False
+$bool waited=False
+
+!HEAD Crew:$(crew) Hull:$(hull)% Repared:$(repaired) Escorted:$(escort)
+!HEAD  
+
+@main
+{
+	Whilst retreating from some raiders you find your ship cruising towards an asteroid field. 
+	\ 
+	What do you do?
+	
+	>@1
+		>Stay on course
+		>>GOTO@main.1
+	
+	>@2
+		>Use your expert flying skills to dodge through all the asteroids
+		>>GOTO@main.2
+		
+	>@3
+		>Use your reverse thrusters to slow down and carefully navigate the asteroids
+		>>GOTO@main.3
+		
+	>@4
+		>Attempt to slow yourself down by tactically hitting an asteroid
+		>>GOTO@main.4
+}
+
+@main.1
+{
+	You completely ignore the fact that there are asteroids in front of you, miraculously you don't hit anything.
+	As the asteroids start thinning you pick up a distress signal from slightly back in the asteroid field
+	In the opposite direction from the distress signal you spot a fuelling station, which isn't marked on your starmap.
+	\ 
+	What do you do?
+	
+	>@1
+		>Slow down and check your ship for any minor damages
+		>>GOTO@main.1.1
+		
+	>@2
+		>Stay on course
+		>>GOTO@main.1.2
+		
+	>@3
+		>Go and investigate the distress signal
+		>>GOTO@beacon
+		
+	>@4
+		>Go and investigate the fuelling station
+		>>GOTO@fuel
+	
+	// todo: complete sacrafice story line
+	//       compelte 
+	@main.1.1
+	{
+		You slow down in a relatively safe area, turn the engines off and order your engineers to begin a full check off the ship.
+		As you are waiting, a couple of what look like raider ships emerge from the asteroid field, somehow having avoided your radar.
+		\ 
+		What do you do?
+		
+		>@1
+			>Immediately start the engine, sacrificing the engineers outside checking the ship.
+			>>GOTO@main.1.1.1
+			>>$int crew=930
+			
+		>@2
+			>Call the engineers back in to the ship
+			>>GOTO@main.1.1.2
+			
+		>@3
+			>Do nothing and continue checking the ship, maybe they just want to chat!
+			>>GOTO@main.1.1.3
+			>>$bool repaired=True
+			
+		>@4
+			>Put some of your crew members in to escape pods and make them kamikaze in to the approaching ships
+			>>GOTO@main.1.1.4
+			
+
+		@main.1.1.1
+		{
+			You immediately start the engine and career off, your ship proves to be significantly faster than the other two and you quickly out run them, losing them amongst the asteroids further on.
+			As you begin to slow again, you realize you have been driving straight towards the fuelling station.
+			\
+			What do you do?
+			
+			>@1
+				>Go past the fuelling station and leave the asteroid field
+				>>GOTO@main.1.1.1.1
+			
+			>@2
+				>Go and explore the fuelling station
+				>>GOTO@fuel
+				
+			@main.1.1.1.1
+			{
+				As you continue on past the fuelling station, one of your main thrusters fails and you become stranded. 
+				Your engineers begin to do repairs but before they've finished some raiders catch up to you, board and kill everyone.
+				>#DISABLE HEAD
+				>#DISABLE TAIL
+			}
+		}
+		
+		@main.1.1.2
+		{
+			You wait for the engineers to get safely back in to the ship, meanwhile the approaching ships radio you. They claim to have salvaged their ships from a fight with the raiders, they say they're the ones who let out the distress beacon as the raiders disabled a transport ship they were escorting and desperately need transport for the civilians on board.
+			\
+			What do you do?
+			
+			>@1
+				>Follow them back in to the asteroid field, towards the distress beacon
+				>>GOTO@main.1.1.2.1
+			
+			>@2
+				>Refuse and start up your engine
+				>>GOOT@main.1.1.2.2
+				
+			>@3
+				>Put some of your crew members in to escape pods and make them kamikaze in to the approaching ships
+				>>GOTO@main.1.1.2.3
+			
+			>@4
+				>Don't respond and play dead
+				>>GOTO@main.1.1.2b
+				
+			@main.1.1.2b
+			{
+				They obviously don't fall for it and radio again, warning they'll open fire if you don't respond.
+				\
+				What do you do?
+				
+				>@1
+					>Follow them back in to the asteroid field, towards the distress beacon
+					>>GOTO@main.1.1.2.1
+				
+				>@2
+					>Refuse and start up your engine
+					>>GOOT@main.1.1.2.2
+					
+				>@3
+					>Put some of your crew members in to escape pods and make them kamikaze in to the approaching ships
+					>>GOTO@main.1.1.2.3
+			}
+				
+			@main.1.1.2.1
+			{
+				You follow them back in to the asteroid field, however it turns out one of your main thrusters was damaged. The thruster suddenly stops and you go suddenly bank straight in to an asteroid,
+				Everyone dies.
+				>#DISABLE HEAD
+				>#DISABLE TAIL
+			}
+			
+			@main.1.1.2.2
+			{
+				Your engine hardly has time to start up before the fire an EMP at you, disabling your ship.
+				They board and say they'll kill everyone who doesn't join them
+				\
+				What do you do?
+				
+				>@1
+					>Join them, helping them navigate the ship
+					>>GOTO@main.1.1.2.2.1
+					>>$int crew=400
+					
+				>@2
+					>Refuse to join them
+					>>GOTO@main.1.1.2.2.2
+					
+				>@3
+					>Attempt to overthrow them
+					>>GOTO@main.1.1.2.2.3
+					
+				>@4
+					>Attempt to sneak to an escape pod and escape
+					>>GOTO@main.1.1.2.2.4
+					
+				@main.1.1.2.2.1
+				{
+					You agree to help them and they appear to trust you, allowing you to stay in the bridge.
+					Most of your crew refuse to join, however a fair amount of them boarded.
+					\
+					What do you do?
+					>@1
+						>Attempt to subtly steer them in to an asteroid
+						>>GOTO@main.1.1.2.2.1.1
+						
+					>@2
+						>Help them navigate the asteroids and get to the distress beacon
+						>>GOTO@main.1.1.2.2.1.2
+						
+					>@3
+						>Attempt to stage a coup d'etat and overthrow the bridge
+						>>GOTO@main.1.1.2.2.1.3
+						
+					@main.1.1.2.2.1.1
+					{
+						They obviously realise what you're doing and shoot you for disobedience.
+						>#DISABLE HEAD
+						>#DISABLE TAIL
+					}
+					
+					@main.1.1.2.2.1.2
+					{
+						As the ship makes its way through the asteroid field, one of the main thrusters suddenly disables and the ship banks in to an asteroid, colliding with one of the escort ships on the way.
+						Everyone from both ships dies.
+						>#DISABLE HEAD
+						>#DISABLE TAIL
+					}
+					
+					@main.1.1.2.2.1.3
+					{
+						You are unarmed, have no military training and completely outnumbered.
+						You immediately get shot and killed.
+						>#DISABLE HEAD
+						>#DISABLE TAIL
+					}
+				}
+				
+				@main.1.1.2.2.2
+				{
+					You refuse to join them and promptly get shot.
+					They did warn you.
+					>#DISABLE HEAD
+					>#DISABLE TAIL
+				}
+				
+				@main.1.1.2.2.3
+				{
+					You attempt to overthrow them, however your ship is completely unarmed and nobody has any military training.
+					Your entire crew, including you, gets killed.
+					>#DISABLE HEAD
+					>#DISABLE TAIL
+				}
+				
+				@main.1.1.2.2.4
+				{
+					You stealthily make your way through the vents, masterfully avoiding all of the guards you manage to sneak in to one of the pods.
+					As you sit in the pilot ship, a soldier who was hiding in the pod sneaks up behind you and shoots you.
+					>#DISABLE HEAD
+					>#DISABLE TAIL
+				}
+			}
+			
+			@main.1.1.2.3
+			{
+				You wave off the brave "volunteers" as the pods undock and go hurtling towards the approaching ships at top speed.
+				Miraculously, one of them gets a direct hit on a main thruster, causing one of them to swerve right in to the other, destroying both of them.
+				\
+				What do you do?
+				
+				>@1
+					>Get your engineers to finish the ship checks
+					>>GOTO@main.1.1.2.3.1
+					>>$bool repaired=True
+					
+				>@2
+					>Investigate the fuelling station
+					>>GOTO@fuel
+					
+				>@3
+					>Investigate the distress beacon
+					>>GOTO@beacon
+					
+				>@4
+					>Leave the asteroid field
+					>>GOTO@leave
+					
+				@main.1.1.2.3.1
+				{
+					Your engineers finish their check safely and find a fault with one of your main thrusters, they fix the issue and inform you the ship is ready to leave now.
+					\
+					What do you do?
+					
+					>@1
+						>Investigate the fuelling station
+						>>GOTO@fuel
+						
+					>@2
+						>Investigate the distress beacon
+						>>GOTO@beacon
+						
+					>@3
+						>Leave the asteroid field
+						>>GOTO@leave
+						
+				}
+			}
+		}
+		
+		@main.1.1.3
+		{
+			Your engineers continue to check the and find a fault with one of the main thrusters,
+			While your engineers were performing their checks, the approaching ships radio you. They claim to have salvaged their ships from a fight with the raiders, they say they're the ones who let out the distress beacon as the raiders disabled a transport ship they were escorting and desperately need transport for the civilians on board.
+			\
+			What do you do?
+			
+			>@1
+				>Start the engine and attempt to outrun them
+				>>GOTO@main.1.1.2.2
+				
+			>@2
+				>Repair the thruster then follow them back to the asteroid field towards the distress beacon
+				>>GOTO@main.1.1.3.2
+				
+			>@3
+				>Repair the thruster and put some of your crew members in to escape pods and make them kamikaze in to the approaching ships
+				>>GOTO@main.1.1.3.3
+				
+			>@4
+				>Don't respond and play dead
+				>>GOTO@main.1.1.3b
+				
+			@main.1.1.3b
+			{
+				They obviously don't fall for it and radio again, warning they'll open fire if you don't respond.
+				\
+				What do you do?
+				
+				>@1
+					>Start the engine and attempt to outrun them
+					>>GOTO@main.1.1.2.2
+					
+				>@2
+					>Repair the thruster then follow them back to the asteroid field towards the distress beacon
+					>>GOTO@main.1.1.3.2
+					
+				>@3
+					>Repair the thruster and put some of your crew members in to escape pods, making them kamikaze in to the approaching ships
+					>>GOTO@main.1.1.3.3
+			}
+				
+			@main.1.1.3.3
+			{
+				You wave off the brave "volunteers" as the pods undock and go hurtling towards the approaching ships at top speed.
+				Miraculously, one of them gets a direct hit on a main thruster, causing one of them to swerve right in to the other, destroying both of them.
+				\
+				What do you do?
+					
+				>@2
+					>Investigate the fuelling station
+					>>GOTO@fuel
+					
+				>@3
+					>Investigate the distress beacon
+					>>GOTO@beacon
+					
+				>@4
+					>Leave the asteroid field
+					>>GOTO@leave
+			}
+			
+			@main.1.1.3.2
+			{
+				You navigate through the asteroid field back towards the distress beacon, escorted by the two ships.
+				
+				>@1
+					>Continue...
+					>>GOTO@beacon
+					>>$bool escort=True
+			}
+		}
+		
+		@main.1.1.4
+		{
+			You wave off the brave "volunteers" as the pods undock and go hurtling towards the approaching ships at top speed.
+			The pods do absolutely nothing to the ships, the ships then promptly open fire and obliterate you.
+			Everyone dies.
+			>#DISABLE HEAD
+			>#DISABLE TAIL
+		}
+	}
+	
+	@main.1.2
+	{
+		As you continue through the asteroid field one of your main thrusters suddenly fails and you smash in to an asteroid.
+		Everyone dies.
+	}
+}
+
+@main.2
+{
+	You take manual control of the ship and fly straight in to the closest asteroid.
+	You're a captain, not a pilot.
+	Everyone dies instantly.
+	>#DISABLE HEAD
+	>#DISABLE TAIL
+}
+
+@main.3
+{
+	You use your reverse thrusters to try and slow the ship, unfortunately as you slow down an asteroid comes flying in to the side of your ship, ripping it clean in half.
+	Everyone dies instantly.
+	>#DISABLE HEAD
+	>#DISABLE TAIL
+}
+
+@main.4
+{
+	Sorry, this tree hasn't been written yet
+	
+	>@1
+		> Go back to start
+		>>GOTO@main
+		>>$int crew=1000
+		>>$float hull=100
+		>>$bool repaired=False
+		>>$bool escort=False
+}
+
+@fuel
+{
+	The fueling station comes in to sight...
+	There doesn't seem to be any other ships docked there
+	
+	>@1
+		> Approach the station
+		>>GOTO@fuel.main
+		
+
+
+	@fuel.main
+	{
+		As you approach an automatic welcome message plays through the radio and you lose control of your ship as it's guided in to the appropriate dock.
+		Once you finish docking, a walkway extends and connects to your ship and attaches to one of your air locks, just inside the walkway is a machine that seems to be for undocking and paying for fuel. The walkway seems well maintained, however there doesn't seem to be any signs of life around.
+		\
+		What do you do?
+		
+
+		>@1 
+			>Send some of your crew down the walkway to see if there's anyone around
+			>>GOTO@fuel.wait
+			>>$bool waited=True
+			
+		>@2
+			>Go down the walkway alone to see if there's anyone around
+			
+		>@3
+			>Go down the walkway with some of your crew to see if there's anyone around
+			
+		>@4
+			>Interact with the machine
+			>>GOTO@fuel.machine
+			
+		@fuel.wait
+		{
+			You send 10 of your crew down the walkway to explore the ship and wait for them to return.
+			\
+			What do you do?
+			
+			>@1
+				> Wait some more
+				
+			>@2
+				> Interact with the machine
+				>>GOTO@fuel.wait.machine
+				
+			>@3
+				>Go after your crew alone
+				
+			>@4
+				>Go after your crew with some more of your crew
+				
+			@fuel.wait.machine
+			{
+				You walk up to the machine and turn it on, the display lights up and shows a simple menu:
+				\
+				\
+				Welcome to the Lonely Asteroid Fueling Station!
+				\	
+				Todays asteroid forecast is: 
+					  ERROR, NO FORECAST FOUND
+				\
+				What can we do for you?
+				
+				>@1
+					>Undock ship
+					>>GOTO@fuel.wait.machine.1
+				
+				>@2
+					>Buy fuel
+					>>GOTO@fuel.wait.machine.2
+					
+				>@3
+					>Contact station
+					>>GOTO@fuel.wait.machine.3
+					
+				>@3
+					>Power down
+					>>GOTO@fuel.wait
+					
+				@fuel.wait.machine.1
+				{
+					\>>> UNDOCK SEQUENCE INITIALIZED
+					\>>>
+					\>>> FUEL PUMP DISCONNECTED...
+					\>>>     CHECK
+					\>>> FUEL PAYED FOR...
+					\>>>     CHECK
+					\>>> SHIP POWER ON...
+					\>>>     CHECK
+					\>>> DETACHING WALKWAY...
+					\>>>     ERROR, UNEXPECTED OBJECT DETECTED IN WALKWAY.
+					\>>>     PLEASE CLEAR WALKWAY BEFORE UNDOCKING
+					\>>> 
+					\>>> UNDOCK SEQUENCE FAILED WITH AN ERROR:
+					\>>>       WALKWAY FAILED TO DETACH
+					\>>>
+					
+					>@1
+						>Return to menu
+						>>GOTO@fuel.wait.machine
+				}
+				
+				@fuel.wait.machine.2
+				{
+					\>>> PLEASE ENTER SHIP NAME AND MODEL:
+					\>>>     LIBERTY LBT1A253B2
+					\>>> LOADING SHIP SCHEMATIC...
+					\>>> SHIP SCHEMATIC FOUND, CONNECTING FUEL PUMP
+					\>>> FUEL PUMP CONNECTED SUCCESSFULLY
+					\>>> 
+					\>>> FINISHED
+					\
+					\
+					Fuel price is currently $162,913,125 per megalitre
+					Please select one of the following options:
+					
+						
+					>@1
+						>Disconnect fuel pump and return to menu
+						>>GOTO@fuel.wait.machine
+						
+					>@2
+						>Fill fuel tank and disconnect fuel pump
+						>>GOTO@fuel.wait.machine.2.1
+					
+					@fuel.machine.2.1
+					{
+						\>>> DETECTING FUEL LEVELS...
+						\>>> DETECTED 55.32/253.91 ML, TRANSFERING 198 ML
+						\>>> PLEASE WAIT WHILE YOUR TANK IS FILLED...
+						\>>> ...
+						\>>> FINISHED.
+						\>>>
+						\>>> FUEL COST: $32,246,798,750
+						\>>> TRANSACTION FEE: $100,000,000
+						\>>>
+						\>>> TOTAL COST: $32,346,798,750
+						\>>>
+						\>>> REQUESTING ACCESS TO SHIP FOR COMPANY ACCOUNT...
+						\>>> ACCESS ALLOWED, TRANSACTION COMPLETED.
+						\>>>
+						\>>> THANK YOU FOR USING LONELY ASTEROID FUELING STATION
+						\>>>
+						\>>> 
+						
+						>@1
+							>Disconnect fuel pump and return to menu
+							>>GOTO@fuel.wait.machine
+							>>DISABLE@fuel.wait.machine.2@2
+					}
+				}
+				
+				@fuel.machine.3
+				{
+					Sorry, all staff are currently busy.
+					Please try again later.
+					
+					>@1
+						>Back to menu
+						>>GOTO@fuel.wait.machine
+						
+					>@2
+						>Try again
+				}
+				
+				
+			}
+		}
+			
+		@fuel.machine
+		{
+			You walk up to the machine and turn it on, the display lights up and shows a simple menu:
+			\
+			\
+			Welcome to the Lonely Asteroid Fueling Station!
+			\	
+			Todays asteroid forecast is: 
+				  ERROR, NO FORECAST FOUND
+			\
+			What can we do for you?
+			
+			>@1
+				>Undock ship
+				>>GOTO@fuel.machine.1
+			
+			>@2
+				>Buy fuel
+				>>GOTO@fuel.machine.2
+				
+			>@3
+				>Contact station
+				>>GOTO@fuel.machine.3
+				
+			>@3
+				>Power down
+				>>GOTO@fuel.main
+				
+			@fuel.machine.1
+			{
+				\>>> UNDOCK SEQUENCE INITIALIZED
+				\>>>
+				\>>> FUEL PUMP DISCONNECTED...
+				\>>>     CHECK
+				\>>> FUEL PAYED FOR...
+				\>>>     CHECK
+				\>>> SHIP POWER ON...
+				\>>>     CHECK
+				\>>> DETACHING WALKWAY...
+				\>>>     ERROR, UNEXPECTED OBJECT DETECTED IN WALKWAY.
+				\>>>     PLEASE CLEAR WALKWAY BEFORE UNDOCKING
+				\>>> 
+				\>>> UNDOCK SEQUENCE FAILED WITH AN ERROR:
+				\>>>       WALKWAY FAILED TO DETACH
+				\>>>
+				
+				>@1
+					>Return to menu
+					>>GOTO@fuel.machine
+			}
+			
+			@fuel.machine.2
+			{
+				\>>> PLEASE ENTER SHIP NAME AND MODEL:
+				\>>>     LIBERTY LBT1A253B2
+				\>>> LOADING SHIP SCHEMATIC...
+				\>>> SHIP SCHEMATIC FOUND, CONNECTING FUEL PUMP
+				\>>> FUEL PUMP CONNECTED SUCCESSFULLY
+				\>>> 
+				\>>> FINISHED
+				\
+				\
+				Fuel price is currently $162,913,125 per megalitre
+				Please select one of the following options:
+				
+					
+				>@1
+					>Disconnect fuel pump and return to menu
+					>>GOTO@fuel.machine
+					
+				>@2
+					>Fill fuel tank and disconnect fuel pump
+					>>GOTO@fuel.machine.2.1
+				
+				@fuel.machine.2.1
+				{
+					\>>> DETECTING FUEL LEVELS...
+					\>>> DETECTED 55.32/253.91 ML, TRANSFERING 198 ML
+					\>>> PLEASE WAIT WHILE YOUR TANK IS FILLED...
+					\>>> ...
+					\>>> FINISHED.
+					\>>>
+					\>>> FUEL COST: $32,246,798,750
+					\>>> TRANSACTION FEE: $100,000,000
+					\>>>
+					\>>> TOTAL COST: $32,346,798,750
+					\>>>
+					\>>> REQUESTING ACCESS TO SHIP FOR COMPANY ACCOUNT...
+					\>>> ACCESS ALLOWED, TRANSACTION COMPLETED.
+					\>>>
+					\>>> THANK YOU FOR USING LONELY ASTEROID FUELING STATION
+					\>>>
+					\>>> 
+					
+					>@1
+						>Disconnect fuel pump and return to menu
+						>>GOTO@fuel.machine
+						>>DISABLE@fuel.machine.2@2
+				}
+			}
+			
+			@fuel.machine.3
+			{
+				Sorry, all staff are currently busy.
+				Please try again later.
+				
+				>@1
+					>Back to menu
+					>>GOTO@fuel.machine
+					
+				>@2
+					>Try again
+			}
+			
+			
+		}
+
+		@fuel.walk
+		{
+			
+		}
+	}
+
+}
+
+@beacon
+{
+	You reach the beacon, progress:
+	\
+	repaired: $(repaired)
+	escorted: $(escort)
+	\
+	The rest of this tree hasn't been written yet
+	
+	>@1
+		> Go back to start
+		>>GOTO@main
+		>>$int crew=1000
+		>>$float hull=100
+		>>$bool repaired=False
+		>>$bool escort=False
+}
+
+@leave
+{
+	You leave the asteroid field, progress:
+	\
+	repaired: $(repaired)
+	\
+	The rest of this tree hasn't been written yet
+	
+	>@1
+		> Go back to start
+		>>GOTO@main
+		>>$int crew=1000
+		>>$float hull=100
+		>>$bool repaired=False
+		>>$bool escort=False
+}

@@ -1,0 +1,49 @@
+$int crew=10000
+$str test=hello world again
+$float pi=3.14
+$bool test bool=TRUE
+
+!HEAD \$(test)
+
+@main
+{
+	block of
+	text
+	with multiple
+	lines
+	
+	>#ENABLE HEAD
+	>#DISABLE TAIL
+	>@Option 1
+	{
+		>Option 1 text
+		>Goes here
+			>>GOTO@main:1
+			>>ENABLE@main@Option 2
+			>>$str test=hello again
+	}
+
+	>@Option 2
+		>Option 2wD
+			>>#DISABLE
+			>>SET@main@TEXT@INSERT@1@hello world
+}
+
+@main:1
+{
+	example
+	text
+	
+	>?CLEAR@main
+	>?SET@main@TEXT@0@hello world 1
+	>?SET@main@TEXT@1@hello world 2
+	>?SET@main@TEXT@2@hello again :)
+	>?SET@OPTION@main@Option 2@TEXT@1@option text addition
+	>@Option1
+		>This is an example option
+			>>GOTO@main
+
+	>@Option2
+		>This is another option
+}
+

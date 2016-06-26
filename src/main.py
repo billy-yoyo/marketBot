@@ -2,6 +2,8 @@ import botlib
 import discord
 import asyncio
 import time
+from os import listdir
+from os.path import isfile, join
 
 def run(restarter, restart_source=None):
     client = discord.Client()
@@ -80,5 +82,6 @@ def run(restarter, restart_source=None):
         break
     f.close()
     print("Logging in...")
+
     client.run(token)
     #restarter()
