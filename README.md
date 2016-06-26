@@ -18,7 +18,7 @@ File information:
     /src/poem-getter.py - gets a large list of poems from a website and loads them in to poems.txt
     /src/textart.py - creates text art in a similar fashion to pygame
     /src/vectorscript.py - unused, not sure if I'll bring this back, it is an image equivelant to textart
-    /srt/styload.py - used to load and run .sty files, see /stories/example.sty for an example of what .sty looks like
+    /src/styload.py - used to load and run .sty files, see /stories/example.sty for an example of what .sty looks like
     /src/plugins/market_cmds.py - contains the code for the main game + some extra (generally 'core' and 'misc' commands)
     /src/plugins/fun_cmds.py - contains the code for the 'fun' commands
     /src/plugins/moderation_cmds.py - contains the code for the 'moderation' commands
