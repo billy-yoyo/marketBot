@@ -14,10 +14,20 @@ File information:
     /src/market.py - container for all of the persistent data (data kept through saves) also where the main bulk of the game is.
     /src/profiler.py - creates profile cards for users. WIP
     /src/formatter.py - formats my hangman/speedtype word list for me.
+    /src/corruptfun2.py - filters a 64bit .bmp file with a kernal
+    /src/poem-getter.py - gets a large list of poems from a website and loads them in to poems.txt
+    /src/textart.py - creates text art in a similar fashion to pygame
+    /src/vectorscript.py - unused, not sure if I'll bring this back, it is an image equivelant to textart
+    /srt/styload.py - used to load and run .sty files, see /stories/example.sty for an example of what .sty looks like
     /src/plugins/market_cmds.py - contains the code for the main game + some extra (generally 'core' and 'misc' commands)
     /src/plugins/fun_cmds.py - contains the code for the 'fun' commands
     /src/plugins/moderation_cmds.py - contains the code for the 'moderation' commands
     /src/plugins/util_cmds.py - contains the code for the 'utility' commands
+    /src/avatars - unused whilst profiler is out of action
+    /src/card_img - unused whilst profiler is out of action
+    /src/cards - unused whilst profiler is out of action
+    /src/corrupt - contains .bmp files for use with corruptfun2
+    /src/stories - contains .sty files for use with styload
 
 Missing information:
 
