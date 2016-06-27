@@ -28,6 +28,7 @@ File information:
     /src/cards - unused whilst profiler is out of action
     /src/corrupt - contains .bmp files for use with corruptfun2
     /src/stories - contains .sty files for use with styload
+    /src/stories/example.sty - details how to use write .sty files
 
 Missing information:
 
