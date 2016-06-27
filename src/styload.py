@@ -1,3 +1,6 @@
+import sys
+from os import listdir
+from os.path import isfile, join
 
 
 def load(filename):
@@ -289,4 +292,42 @@ def get_text(story, card, option=None):
         return text
 
 
-#print(load("example.sty"))
+def _play_card(story, card):
+    print("")
+    print("\n".join(get_text(story, card)))
+    print("")
+    for option in [x for x in story[card]["options_order"] if story[card]["options"][x]["enabled"]]:
+        print(option + ": ")
+        print(">   " + "\n>   ".join(get_text(story, card, option)))
+        print("")
+    print("")
+
+
+def play(filename):
+    story = load(filename)
+    if "main" in story:
+        card = "main"
+        while len(story[card]["options_order"]) > 0:
+            _play_card(story, card)
+            option = str(input("Enter option: "))
+            while option not in story[card]["options_order"] and option != "@exit":
+                option = str(input("Invalid option, Entre option (or @exit): "))
+            if option == "@exit":
+                break
+            card = run_option(story, card, option)
+    else:
+        print("Invalid story file")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        play(sys.argv[1])
+    else:
+        stories = [f for f in listdir(".") if isfile(f) and f.endswith(".sty")]
+        print("Detected stories: ")
+        print(", ".join(stories))
+        print("")
+        print("Please select a story (can enter a filename not listed here if you want): ")
+        play(input(""))
+
+

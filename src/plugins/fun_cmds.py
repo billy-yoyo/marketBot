@@ -579,7 +579,7 @@ def fun_handle(bot, msg, cmd):
                         if name in bot.market.stories:
                             bot.market.games["stories"][msg.author.id] = {"story": copy.deepcopy(bot.market.stories[name]),
                                                                           "current": "main"}
-                            yield from bot.client.send_message(msg.channel, "Story created, used m$story [option] to select an option, or m$story add {mentions} to add other people to the story\n")
+                            yield from bot.client.send_message(msg.channel, "Story created, use m$story [option] to select an option,  m$story add {mentions} to add other people to the story and m$story end to quit the story\nPlease consider doing your story in a private channel or in a PM with MarketBot so that you don't spam chat!\n")
                             yield from update_story(bot, msg)
                         else:
                             yield from bot.client.send_message(msg.channel, "No story named " + name)

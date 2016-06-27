@@ -1,0 +1,84 @@
+// variable declaration, these can be declared anywhere (on their own line)
+$int crew=10000
+$str test=hello world again
+$float pi=3.14
+$bool test bool=TRUE
+
+// define a line of the header, these can be declared anywhere (on their own line)
+// also uses variable strings, formatted as $(variablename) if you want to escape this, use $\( 
+!HEAD $(test)
+
+// define a the tail, these can be declared anywhere (on their own line)
+!TAIL hello world!
+// define the second line of the tail
+!TAIL hello again
+
+// create a new 'card' called 'main', the main card is the one the story will start at
+@main
+// a line with nothing but a curly bracket and whitespace on it is completely ignored, the brackets are purely for organising.
+// whitespace at the start of a line and blank lines are both universally ignored
+{
+	// writing with no decoration is the text for the card
+	// all whitespace before the text starts is ignored, also the first backslash is ignored, so to enter a blank line of text simply write \
+	block of
+	\   text
+	with multiple
+	\
+	lines
+	
+	// initial card settings, enable the header for this card and disable the tail
+	>#ENABLE HEAD
+	>#DISABLE TAIL
+
+	// define an option called 'Option 1', options will appear in the order you define them
+	// all lines that start with a > are option lines
+	>@Option 1
+	{
+		// Any undecorated option line is a line of text.
+		// Option lines follow the same whitespace rules as card text
+		> Option 1 text
+		> Goes here
+			// These are the option arguments, they define what happens when the option is chosen
+			// This one means the next card shown will be 'main:1'
+			>>GOTO@main.1
+			// This means that 'Option 2' of 'main' will be enabled
+			>>ENABLE@main@Option 2
+			// This defines a string variable
+			>>$str test=hello again
+	}
+	
+	// defining another option
+	>@Option 2
+		>Option 2wD
+			// the # decorator is once again initial settings, this means the option is disabled to begin with
+			>>#DISABLE
+			// this inserts a line of text 'hello world' at index 1 of the 'main' text block
+			>>SET@main@TEXT@INSERT@1@hello world
+}
+
+// defining another card named 'main.1'. Cards and options can be named anything as long as they don't contain '@'.
+@main.1
+{
+	example
+	text
+	
+	// these are setup commands, they are run whenever the card is shown
+	// This means clear the text of 'main'
+	>?CLEAR@main
+	// These set the 1st, 2nd and 3rd lines of text for 'main'
+	>?SET@main@TEXT@0@hello world 1
+	>?SET@main@TEXT@1@hello world 2
+	>?SET@main@TEXT@2@hello again :)
+	// This sets the 2nd line of text for 'Option 2' of 'main'
+	>?SET@OPTION@main@Option 2@TEXT@1@option text addition
+	
+	>@Option1
+		>This is an example option
+			>>GOTO@main
+	
+	>@Option2
+		>This is another option
+		// this option has no arguments and hence does nothing,
+		// if this option is chosen the next card will be 'main.1' (the one it's contained in)
+}
+
