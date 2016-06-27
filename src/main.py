@@ -41,10 +41,10 @@ def run(restarter, restart_source=None):
                 if message.author.id == bot.client.user.id:
                     if message.content == bot.ping_message:
                         yield from bot.client.edit_message(message, "Pong! Took " + str(int((time.time() - bot.ping_start)*1000000)/1000) + " milliseconds")
-                    cleanup = 60
-                    if message.channel.is_private:
-                        cleanup = -1
-                    elif message.content.startswith("~"):
+                    cleanup = -1
+                    #if message.channel.is_private:
+                    #    cleanup = -1
+                    if message.content.startswith("~"):
                         if message.channel.id in bot.market.settings["cleanup_tags"]:
                             cleanup = bot.market.settings["cleanup_tags"][message.channel.id]
                         else:

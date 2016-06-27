@@ -591,6 +591,19 @@ def fun_handle(bot, msg, cmd):
                         yield from bot.client.send_message(msg.channel, "You left the current story.")
                     else:
                         yield from bot.client.send_message(msg.channel, "You're not in a story, use m$new [name] to create a new one")
+                elif cmd[1] == "cheat":
+                    if bot.is_me(msg):
+                        if msg.author.id in bot.market.games["stories"]:
+                            dest = " ".join(cmd[2:])
+                            if dest in bot.market.games["stories"][msg.author.id]["story"]:
+                                bot.market.games["stories"][msg.author.id]["current"] = dest
+                                yield from update_story(bot, msg)
+                            else:
+                                yield from bot.client.send_message(msg.channel, "Invalid destination!")
+                        else:
+                            yield from bot.client.send_message(msg.channel, "You aren't in a story!")
+                    else:
+                        yield from bot.client.send_message(msg.channel, "Only the admins can use that command!")
                 elif cmd[1] == "reload":
                     if bot.is_me(msg):
                         name = " ".join(cmd[2:])

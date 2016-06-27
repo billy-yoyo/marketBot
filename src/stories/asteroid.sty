@@ -422,11 +422,12 @@ $bool waited=False
 		>>GOTO@fuel.main
 		
 
-
+	
+	$bool withparty=False
 	@fuel.main
 	{
-		As you approach an automatic welcome message plays through the radio and you lose control of your ship as it's guided in to the appropriate dock.
-		Once you finish docking, a walkway extends and connects to your ship and attaches to one of your air locks, just inside the walkway is a machine that seems to be for undocking and paying for fuel. The walkway seems well maintained, however there doesn't seem to be any signs of life around.
+		As you approach an automatic welcome message plays through the radio and you lose control of your ship whilst it's guided to the appropriate dock.
+		Once you finish docking, a walkway extends and connects to one of your ship's air locks, just inside the walkway is a machine that seems to be for undocking and paying for fuel. The walkway seems well maintained, however there doesn't seem to be any signs of life around.
 		\
 		What do you do?
 		
@@ -438,11 +439,10 @@ $bool waited=False
 			
 		>@2
 			>Go down the walkway alone to see if there's anyone around
+			>>GOTO@fuel.walkway
+			
 			
 		>@3
-			>Go down the walkway with some of your crew to see if there's anyone around
-			
-		>@4
 			>Interact with the machine
 			>>GOTO@fuel.machine
 			
@@ -453,7 +453,8 @@ $bool waited=False
 			What do you do?
 			
 			>@1
-				> Wait some more
+				> Wait for your crew
+				>>SET@OPTION@fuel.wait@1@TEXT@0@Wait some more...
 				
 			>@2
 				> Interact with the machine
@@ -461,9 +462,8 @@ $bool waited=False
 				
 			>@3
 				>Go after your crew alone
+				>>GOTO@fuel.walkway
 				
-			>@4
-				>Go after your crew with some more of your crew
 				
 			@fuel.wait.machine
 			{
@@ -607,7 +607,7 @@ $bool waited=False
 				>Contact station
 				>>GOTO@fuel.machine.3
 				
-			>@3
+			>@4
 				>Power down
 				>>GOTO@fuel.main
 				
@@ -700,9 +700,237 @@ $bool waited=False
 			
 		}
 
-		@fuel.walk
+		$bool bleeding_hand=False
+		$bool walkway_handle=False
+		@fuel.walkway
 		{
+			You set off down the walkway, after turning the first corner you see a door slightly ajar with a flashing red light above it.
+			The lights appear to be on on the other side of they door, however nobody is there. In front of the door there's a vent in the ceiling. In the corner there's a fire extinguisher. Next to the door on the wall there's some sort of door control. Near the corner there's a broken pipe hanging down from the ceiling.
+			\
+			What do you do?
 			
+			>@1
+				>Investigate the door
+				>>GOTO@fuel.walkway.1
+				
+			>@2
+				>Investigate the door control
+				>>GOTO@fuel.walkway.2
+				
+			>@3
+				>Investigate the vent
+				>>GOTO@fuel.walkway.3
+				
+			>@4
+				>Investigate the fire extinguisher
+				>>GOTO@fuel.walkway.4
+				
+			>@5
+				>Investigate the pipe
+				>>GOTO@fuel.walkway.5
+				
+			>@6
+				>Go through the door
+				>>#DISABLE
+				>>GOTO@fuel.walkway.6
+			
+			@fuel.walkway.1
+			{
+				The door's jammed just wide enough to fit your arm through it.
+				
+				>@1
+					>Put your arm through the door
+					>>GOTO@fuel.walkway.1.1
+					
+				>@2
+					>Attempt to pry the door open
+					>>GOTO@fuel.walkway.1.2
+					
+				>@3
+					>Go back..
+					>>GOTO@fuel.walkway
+					
+				>@4
+					>Attempt to bash the door open with your fire extinguisher
+					>>#DISABLE
+					>>GOTO@fuel.walkway.4
+				
+				@fuel.walkway.1.1
+				{
+					You stick your hand through the gap and start to pat around the other side of the door. As you're patting you cut your hand on something sharp and your hand starts bleeding.
+					There doesn't seem to be anything on the other side of the door.
+					
+					>@1
+						>Go back
+						>>GOTO@fuel.walkway.1
+						>>DISABLE@fuel.walkway.1@1
+				}
+				
+				@fuel.walkway.1.2
+				{
+					The door doesn't move at all, despite your best efforts.
+					
+					>@1
+						>Go back
+						>>GOTO@fuel.walkway.1
+						
+				}
+				
+				@fuel.walkway.1.4
+				{
+					You bash the door over and over again with the fire extinguisher, unfortunately all this accomplishes is a nice dent in your fire extinguisher.
+					Better not do that again
+					
+					>@1
+						>Go back
+						>>GOTO@fuel.walkway.1
+						>>DISABLE@fuel.walkway.1@4
+				}
+			}
+			
+			$str missing_handle=, the lever is missing a handle
+			@fuel.walkway.2
+			{
+				The door control consists of a button and a vertical lever$(missing_handle)
+				
+				>@1
+					>Press the button
+					>>GOTO@fuel.walkway.2.1a
+					>>IF@walkway_handle==$bool temp=True@GOTO@fuel.walkway.2.1b
+					
+				>@2
+					>Go back..
+					>>GOTO@fuel.walkway
+					
+				>@3
+					>Attach the metal rod and pull the lever down
+					>>#DISABLE
+					>>GOTO@fuel.walkway.2.3
+					
+				@fuel.walkway.2.1a
+				{
+					You press the button and hear a small motor start up then immediately stop.
+					Nothing else happens.
+					
+					>@1
+						>Go back..
+						>>GOTO@fuel.walkway.2
+				}
+				
+				@fuel.walkway.2.1b
+				{
+					You press the button and hear a small motor start up, then after a few seconds the door slowly slides open and the red light stops flashing.
+					
+					>@1
+						>Go back..
+						>>GOTO@fuel.walkway
+						>>ENABLE@fuel.walkway@6
+				}
+				
+				@fuel.walkway.2.3
+				{
+					You carefully slot the metal rod in to where the handle should be and pull the lever down
+					
+					>@1
+						>Go back..
+						>>GOTO@fuel.walkway.2
+						>>DISABLE@fuel.walkway.2@3
+						>>$bool walkway_handle=True
+						>>$str missing_handle=, the lever handle is attached
+				}
+			}
+			
+			@fuel.walkway.3
+			{
+				The vent is bolted to the ceiling just out of reach.
+				
+				>@1
+					>Go back
+					>>GOTO@fuel.walkway
+					
+				>@2
+					>Fire in to the vent with fire extinguisher
+					>>GOTO@fuel.walkway.3.2
+					>>#DISABLE
+					
+				@fuel.walkway.3.2
+				{
+					You let of a few small bursts in to the vent. 
+					You hear a small metallic sound from somewhere.
+					
+					>@1
+						>Go back
+						>>GOTO@fuel.walkway
+						>>ENABLE@fuel.walkway.5@2
+						>>SET@fuel.walkway.5@TEXT@3@A small metallic object is hanging out of the pipe
+				}
+			}
+			
+			@fuel.walkway.4
+			{
+				The fire extinguisher is attached to the wall with an easy-release system
+					
+				>@1
+					>Go back..
+					>>GOTO@fuel.walkway
+					
+				>@2
+					>Take the fire extinguisher
+					>>GOTO@fuel.walkway.4.2
+					>>SET@fuel.walkway.4@TEXT@0@The fire extinguisher has been taken from the wall
+					>>ENABLE@fuel.walkway.3@2
+					>>ENABLE@fuel.walkway.1@4
+					>>DISABLE@fuel.walkway.4@2
+					
+				@fuel.walkway.4.2
+				{
+					You take the fire extinguisher from the wall
+					
+					>@1
+						>Go back..
+						>>GOTO@fuel.walkway
+				}
+			}
+			
+			@fuel.walkway.5
+			{
+				A small pipe is hanging broken from the ceiling just within arms reach, the pipe is too thin to fit your hand in to it.
+				A slight breeze is coming through the pipe.
+				\
+				\
+				
+				>@1
+					>Go back..
+					>>GOTO@fuel.walkway
+				
+				>@2
+					>Take the metal object
+					>>GOTO@fuel.walkway.5.1
+					>>ENABLE@fuel.walkway.2@3
+					>>SET@fuel.walkway.5@TEXT@3@ 
+					>>#DISABLE
+					
+				@fuel.walkway.5.1
+				{
+					You take the metal object out of the pipe, it's a small metal rod.
+					
+					>@1
+						>Go back
+						>>GOTO@fuel.walkway
+						>>ENABLE@fuel.walkway.1@3
+						>>DISABLE@fuel.walkway.5@2
+				}
+			}
+			
+			@fuel.walkway.6
+			{
+				You walk through the door
+				\
+				The rest of this section is not done.
+				\
+				repaired: $(repaired)
+				bleeding: $(bleeding_hand)
+			}
 		}
 	}
 

@@ -266,7 +266,7 @@ def _format_line(story, line):
                 find = start + len(var)
             elif line[find+1] == "\\":
                 line = line[:find+1] + line[find+2:]
-        find = line.find("$", find)
+        find = line.find("$", find+1)
     return line
 
 
