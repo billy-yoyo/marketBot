@@ -618,12 +618,17 @@ class Market:
         self.news = {}
         self.games = {
             "speedtype": {},
-            "stories": {}
+            "stories": {},
+            "poker": {}
         }
         self.stories = {}
         self.riddles = {}
         self.chests = {}
         self.tags = {}
+        self.disables = {}
+        self.votes = {}
+        self.binds = {}
+        self.perms = {}
         self.tags["__tagban__"] = {}
         self.load()
         self.save_loop()
@@ -784,7 +789,7 @@ class Market:
             os.makedirs("data/")
         if not os.path.exists("data/" + dir_suffix):
             os.makedirs("data/" + dir_suffix)
-        to_save = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings", "reminders", "news"]
+        to_save = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings", "reminders", "news", "disables", "perms", "binds", "votes"]
         for fname in to_save:
             try:
                 data = getattr(self, fname)
@@ -830,7 +835,7 @@ class Market:
         if not os.path.exists("data/"):
             os.makedirs("data/")
         if os.path.exists("data/" + dir_suffix):
-            to_load = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings", "reminders", "news"]
+            to_load = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings", "reminders", "news", "disables", "binds", "perms", "votes"]
             for fname in to_load:
                 try:
                     file_name = "data/" + dir_suffix + fname + ".json"

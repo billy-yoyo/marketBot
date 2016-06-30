@@ -37,7 +37,6 @@ class Bot:
         # command: [command_handler, length_handler]
         self.commands = {}
         # bindname: [ root_command, {more_binds} }
-        self.binds = {}
         self.pings = []
         self.restarter = default_restart
         self.admin_list = []
@@ -47,6 +46,8 @@ class Bot:
         self.setup = False
         self.next_status_change = 0
         self.commands_used = 0
+
+        self.last_disable = ""
 
     def update_status(self, user):
         ctime = time.time()
@@ -67,6 +68,20 @@ class Bot:
                 if command.startswith(cmdcd):
                     return self.cds[cmdcd] - time.time()
         return 0
+
+    def check_disable(self, channel, command):
+        if self.setup:
+            if channel in self.market.disables:
+                check = command[0]
+                if check in self.market.disables[channel]:
+                    self.last_disable = check
+                    return True
+                for word in command[1:8]:
+                    check += " " + word
+                    if check in self.market.disables[channel]:
+                        self.last_disable = check
+                        return True
+        return False
 
     def cooldown(self, user, command, amount):
         if not self.is_me(user, byid=True):
@@ -93,20 +108,31 @@ class Bot:
     def register_ping(self, command):
         self.pings.append(command)
 
-    def handle_bind(self, command, binds, index=0):
-        if command[index] in binds:
-            bind_arr = binds[command[index]][0]
-            command[index] = bind_arr[0]
-            if len(bind_arr) == 1 or bind_arr[1] is None:
-                return command
-            else:
-                return self.handle_bind(command, binds[command[index]][1], index+1)
+    def handle_bind(self, ch, command, binds, index=0):
+        if self.setup:
+            if ch in binds:
+                bcmd = command
+                check = command[0]
+                if check in binds[ch]:
+                    bcmd = (binds[ch][check] + " " + " ".join(command[1:])).split(" ")
+                for i, word in enumerate(command[1:8]):
+                    check += " " + word
+                    if check in binds[ch]:
+                        new_cmd = binds[ch][check]
+                        if len(command[i+1:]) > 0:
+                            new_cmd += " " + " ".join(command[i:])
+                        bcmd = new_cmd.split(" ")
+                return bcmd
         return command
+
+    def command_exists(self, command):
+        if type(command) is str:
+            command = command.split(" ")
+        return command[0] in self.commands
 
     # command is the message seperated by " "
     def handle_command(self, role, command):
         if command[0] in self.commands:  # root command exists
-            command = self.handle_bind(command, self.binds)
             if role.check_command(command, self.commands[command[0]][1](command)):
                 return self.commands[command[0]][0]
         return None
@@ -116,6 +142,39 @@ class Bot:
         cmds = text.split(" ")
         while "" in cmds: cmds.remove("")
         return cmds
+
+    def check_permission(self, command, member, channel):
+        if channel.id in self.market.perms:
+            for i in range(1, min(len(command)+1, 7)):
+                check = " ".join(command[:i])
+                if check in self.market.perms[channel.id]:
+                    permissions = channel.permissions_for(member)
+                    for perm in self.market.perms[channel.id][check]:
+                        spl = perm.split(" ")
+                        key = spl[0]
+                        value = " ".join(spl[1:])
+                        if key == "role":
+                            has_role = False
+                            for role in member.roles:
+                                if role.name == value:
+                                    has_role = True
+                                    break
+                            if not has_role:
+                                return False
+                        elif key == "perm":
+                            if not getattr(permissions, value, True):
+                                return False
+                        else:
+                            print("PERMISSIONS ERROR: unknown permissions key '" + key + "'")
+        return True
+
+    def valid_permission(self, perm):
+        permissions = discord.Permissions()
+        return type(getattr(permissions, perm, None)) is bool
+
+    def list_valid_permissions(self):
+        permissions = discord.Permissions()
+        return [x for x in dir(permissions) if type(getattr(permissions, x, None)) is bool]
 
     def run_command(self, message, role):
         if not message.channel.id in self.market.settings["ignore_list"] or message.content == self.prefix + "unignore":
@@ -128,11 +187,19 @@ class Bot:
                 else:
                     command = self.mention_to_command(message)
                 if command is not None:
+                    command = self.handle_bind(message.channel.id, command, self.market.binds)
                     handle = self.handle_command(role, command)
                     if handle is not None:
-                        self.commands_used += 1
-                        yield from handle(self, message, command)
-                        return True
+                        if not self.check_disable(message.channel.id, command):
+                            if self.check_permission(command, message.author, message.channel):
+                                self.commands_used += 1
+                                yield from handle(self, message, command)
+                                return True
+                            else:
+                                yield from self.client.send_message(message.channel, "You don't have permission to use that command!")
+                        else:
+                            yield from self.client.send_message(message.channel, "Command `" + self.last_disable + "` disabled in this channel! See " + self.prefix + "disabled for a list of disabled commands.")
+                            return False
             return False
 
 

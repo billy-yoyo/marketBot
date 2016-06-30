@@ -2,6 +2,7 @@ import botlib
 import discord
 import asyncio
 import time
+import requests
 from os import listdir
 from os.path import isfile, join
 
@@ -30,6 +31,19 @@ def run(restarter, restart_source=None):
             yield from client.send_message(restart_source.channel, ">>> Restart Complete <<<")
         print('Done!')
         bot.setup = True
+
+    @client.event
+    @asyncio.coroutine
+    def on_server_join(server):
+        if not is_test_bot:
+            requests.post("https://www.carbonitex.net/discord/data/botdata.php", data={'key': carbon_key, 'servercount': len(bot.client.servers)})
+
+    @client.event
+    @asyncio.coroutine
+    def on_server_remove(server):
+        if not is_test_bot:
+            requests.post("https://www.carbonitex.net/discord/data/botdata.php",
+                          data={'key': carbon_key, 'servercount': len(bot.client.servers)})
 
     @client.event
     @asyncio.coroutine
@@ -76,10 +90,20 @@ def run(restarter, restart_source=None):
     test_role = botlib.Role(all=True)
     print("Finding bot token...")
     token = None
-    f = open("credentials_test.txt")
+    carbon_key = None
+    is_test_bot = True
+
+    if is_test_bot:
+        f = open("credentials_test.txt")
+    else:
+        f = open("credentials.txt")
     for line in f:
-        token = line
-        break
+        if token is None:
+            token = line.replace("\n", "")
+        else:
+            carbon_key = line.replace("\n", "")
+            break
+
     f.close()
     print("Logging in...")
 

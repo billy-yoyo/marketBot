@@ -907,3 +907,4 @@ def art_script(width, height, lines):
             result.log("error encountered on line '" + line + "'")
             traceback.print_exc()
     return result
+

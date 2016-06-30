@@ -1,0 +1,145 @@
+
+@main
+{
+	You wake up in a hallway, you can see doors to a living room, dining room, kitchen and small bathroom. In the hallway is a staircase going to the next floor.
+	All of the windows you can see are boarded up and the front door is completely jammed shut.
+	
+	>@1
+		> Go to the living room
+		
+	>@2
+		> Go to the dining room
+		
+	>@3
+		> Go to the kitchen
+		
+	>@4
+		> Go to the bathroom
+		
+	>@5
+		> Go upstairs
+	
+}
+
+// downstairs
+{
+	@main.living
+	{
+		In the living room there are sofas next to two of the walls, on another wall is a fireplace with a mirror above in and on the last wall are two boarded up windows.
+		There's a small table with a rug underneath it in the centre of the room.
+		
+		>@1
+			> Sit down
+			>>GOTO@main.living.sit.1
+			
+		>@2
+			> Investigate windows
+			>>GOTO@main.windows
+			
+		>@3
+			> Investigate fireplace
+			
+		>@4
+			> Investigate mirror
+			
+		>@5
+			> Move table and pull up rug
+			>>#DISABLE
+	
+		
+		@main.living.sit.1
+		{
+			You sit down on the sofa, it's quite a comfy sofa.
+			
+			>@1
+				> Get up
+				>>GOTO@main.living
+				
+			>@2
+				> Stay sitting
+				>>GOTO@main.living.sit.2
+			
+			@main.living.sit.2
+			{
+				You stay sitting on the sofa.. It's a really comfy sofa...
+				
+				>@1
+					> Get up
+					>>GOTO@main.living
+					
+				>@2
+					> Stay sitting
+					>>GOTO@main.living.sit.3
+					
+				@main.living.sit.3
+				{
+					You fall asleep on the sofa
+					
+					>@1
+						> ...
+						>>GOTO@main
+				}
+			}
+		}
+		
+		@main.living.windows
+		{
+			The boards are nailed firmly to the wall, You'd need something pretty hefty to break through them.
+			There are a few shafts of light coming through the gaps in the boards.
+			
+			>@1
+				> Go back
+				>>GOTO@main.living
+		}
+		
+		@main.living.fireplace
+		{
+			There are a couple of logs in the fireplace with some ash below them. The fireplace has clearly been lit recently.
+			The logs feel slightly odd to touch, as if they're not quite made of wood.
+			\
+			Below one of the logs is a burnt sheet of paper, you can just about make out some of the letters:
+			\
+			\	 Fe  x,
+			\
+			\	 Th  re            leav   rly,      won't b    ound whe
+			\    I   sor
+			\             not                     wan
+			\                      goodb                                           I lef       key
+			\
+			\    heat                          lease dispose         letter      you retrieve it.
+			\
+			\    ki   st r   rds,
+			\    Har  d Wi  er  n
+			\
+			
+			>@1 
+				> Go back
+				>>GOTO@main.living
+				
+			>@2
+				> Place kindling
+				>>#DISABLE
+				
+			>@3
+				> Light kindling
+				>>#DISABLE
+		}
+	
+	}
+	
+	@main.dining
+	{
+	
+	}
+	
+	@main.kitchen
+	{
+	
+	}
+	
+	@main.bathroom
+	{
+	
+	}
+
+}

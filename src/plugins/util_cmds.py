@@ -1,6 +1,5 @@
-import traceback, datetime, time, aiohttp, html2text, urllib
+import traceback, datetime, time, aiohttp, html2text, urllib, market
 from pws import Bing
-
 
 def google_search(phrase):
     result = Bing.search(phrase, 1, 0)["results"][0]
@@ -36,6 +35,11 @@ def is_tag_banned(bot, msg):
         return msg.author.id in tagban[msg.channel.id]
     return False
 
+def get_percent(v, total):
+    return int( (v/total) * 10000 ) / 100
+
+def format_vote(vote):
+    return "`" + vote["title"] + "`\n" + "\n".join(["    `" + str(i+1) + ":` " + option for (i, option) in enumerate(vote["options"])])
 
 def util_handle(bot, msg, cmd):
     formatting = bot.prefix + "help to see help!"
@@ -67,6 +71,114 @@ def util_handle(bot, msg, cmd):
                     yield from bot.client.send_message(msg.channel, "Reminder created.")
                 else:
                     yield from bot.client.send_message(msg.channel, "Invalid amount of time, example: 3 hours 10 mins 30 secs")
+            elif cmd[0] == "vote":
+                if cmd[1] == "new":
+                    formatting = bot.prefix + 'vote new [name] "Title" | "Option 1" | "Option 2" | etc..'
+                    # m$vote new example "Which is better?" | "Option 1" | "Opiton 2"
+                    name = cmd[2]
+                    if name != "new" and name != "results" and name != "end" and name != "list":
+                        if msg.channel.id in bot.market.votes and name in bot.market.votes[msg.channel.id]:
+                            yield from bot.client.send_message(msg.channel, "Vote `" + name + "` already exists, use `" + bot.prefix + "vote end " + name + "` to end it")
+                        else:
+                            stuff = []
+                            cur_stuff = ""
+                            adding = False
+                            last_char = ""
+                            for char in " ".join(cmd[3:]):
+                                if char == '"' and last_char != "\\":
+                                    if adding:
+                                        stuff.append(cur_stuff)
+                                        cur_stuff = ""
+                                    adding = adding == False
+                                elif adding:
+                                    cur_stuff += char
+
+                                last_char = char
+                            if cur_stuff != "":
+                                stuff.append(cur_stuff)
+                            if len(stuff) >= 3:
+                                if not msg.channel.id in bot.market.votes:
+                                    bot.market.votes[msg.channel.id] = {}
+                                bot.market.votes[msg.channel.id][name] = {
+                                    "title": stuff[0],
+                                    "options": stuff[1:],
+                                    "votes": [0] * len(stuff[1:]),
+                                    "total": 0,
+                                    "voted": {}
+                                }
+                                yield from bot.client.send_message(msg.channel, "Created new vote `" + name + "`:\n" + format_vote(bot.market.votes[msg.channel.id][name]) + "\nUse `" + bot.prefix + "vote " + name + " [option]` to vote")
+                            else:
+                                yield from bot.client.send_message(msg.channel, "Invalid usage, must give a title and at least two options")
+                    else:
+                        yield from bot.client.send_message(msg.channel, "Invalid vote name, cannot be `new`, `results`, `list` or `end`")
+                elif cmd[1] == "list":
+                    if msg.channel.id in bot.market.votes and len(bot.market.votes[msg.channel.id]) > 0:
+                        yield from bot.client.send_message(msg.channel, "Current votes: " + ", ".join(["`" + x + "`" for x in bot.market.votes[msg.channel.id]]))
+                    else:
+                        yield from bot.client.send_message(msg.channel, "There are no current votes in this channel")
+                elif cmd[1] == "results":
+                    if cmd[2] in bot.market.votes[msg.channel.id]:
+                        vote = bot.market.votes[msg.channel.id][cmd[2]]
+                        if vote["total"] > 0:
+                            yield from bot.client.send_message(msg.channel, "Current results for `" + vote["title"] + "`: \n" + "\n".join(["`" + str(i+1) + ": " + option + "` has `" + str(vote["votes"][i]) + "` votes (" + str(get_percent(vote["votes"][i], vote["total"])) + "%)" for (i, option) in enumerate(vote["options"])]))
+                        else:
+                            yield from bot.client.send_messaeg(msg.channel, "Nobody has voted on `" + vote["title"] + "` yet")
+                    else:
+                        yield from bot.client.send_message(msg.channel,
+                                                           "Invalid vote, see " + bot.prefix + "vote list for a list of current votes")
+                elif cmd[1] == "end":
+                    if cmd[2] in bot.market.votes[msg.channel.id]:
+                        vote = bot.market.votes[msg.channel.id][cmd[2]]
+                        if vote["total"] > 0:
+                            top = []
+                            best = 0
+                            for i, votes in enumerate(vote["votes"]):
+                                if votes == best:
+                                    top.append(i)
+                                elif votes > best:
+                                    top = [i]
+                                    best = votes
+                            win_result = "No winner found (error?)"
+                            if len(top) == 1:
+                                win_result = "`" + vote["options"][top[0]] + "` wins with " + str(best) + " votes (" + str(get_percent(best, vote["total"])) + "%)"
+                            elif len(top) > 1:
+                                win_result = market.word_list_format(["`" + vote["options"][top[i]] + "`" for i in top]) + " draw with " + str(best) + " votes each (" + str(get_percent(best, vote["total"])) + "%)"
+
+                            yield from bot.client.send_message(msg.channel, "Final results for `" + vote["title"] + "`: \n" + "\n".join(["`" + str(i + 1) + ": " + option + "` has `" + str(vote["votes"][i]) + "` votes (" + str(get_percent(vote["votes"][i], vote["total"])) + "%)" for (i, option) in enumerate(vote["options"])]) + "\n\n" + win_result)
+                        else:
+                            yield from bot.client.send_message(msg.channel, "Vote ended without anybody voting.")
+                        del bot.market.votes[msg.channel.id][cmd[2]]
+                    else:
+                        yield from bot.client.send_message(msg.channel,
+                                                           "Invalid vote, see " + bot.prefix + "vote list for a list of current votes")
+
+                elif msg.channel.id in bot.market.votes:
+                    if cmd[1] in bot.market.votes[msg.channel.id]:
+                        vote = bot.market.votes[msg.channel.id][cmd[1]]
+                        if len(cmd) == 2:
+                            if msg.author.id in vote["voted"]:
+                                yield from bot.client.send_message(msg.channel, format_vote(vote) + "\n\nYou've voted for `" + vote["options"][vote["voted"][msg.author.id]] + "`")
+                            else:
+                                yield from bot.client.send_message(msg.channel, format_vote(vote))
+                        else:
+                            option = int(cmd[2]) - 1
+                            max_option = len(vote["votes"])
+                            if 0 <= option < max_option:
+                                if not msg.author.id in vote["voted"]:
+                                    vote["votes"][option] += 1
+                                    vote["total"] += 1
+                                    vote["voted"][msg.author.id] = option
+                                    yield from bot.client.send_message(msg.channel, msg.author.mention + " voted for `" + vote["options"][option] + "` in the `" + cmd[1] + "` vote")
+                                else:
+                                    vote["votes"][vote["voted"][msg.author.id]] -= 1
+                                    vote["votes"][option] += 1
+                                    vote["voted"][msg.author.id] = option
+                                    yield from bot.client.send_message(msg.channel, msg.author.mention + " changed their vote to `" + vote["options"][option] + "` in the `" + cmd[1] + "` vote")
+                            else:
+                                yield from bot.client.send_message(msg.channel, "Invalid option, must be in the range 1 to " + str(max_option))
+                    else:
+                        yield from bot.client.send_message(msg.channel, "Invalid vote, see " + bot.prefix + "vote list for a list of current votes")
+
             elif cmd[0] == "uptime":
                 dtstr = ""
                 struct = datetime.datetime.fromtimestamp(time.time() - bot.start_time)
@@ -450,10 +562,11 @@ def util_handle(bot, msg, cmd):
                     else:
                         yield from bot.client.send_message(msg.channel, "Currencies must be a bind or 3 letters long")
             elif cmd[0] == "tag":
+                formatting = bot.prefix + "help tag"
                 if is_tag_banned(bot, msg) and not bot.is_me(msg):
                     yield from bot.client.send_message(msg.channel, ":label: You are banned from using tags in this channel!")
                 else:
-                    if cmd[1] == "ban":
+                    if len(cmd) > 1 and cmd[1] == "ban":
                         if bot.is_me(msg) or msg.channel.permissions_for(msg.author).manage_messages:
                             if len(msg.mentions) > 0:
                                 for member in msg.mentions:
@@ -468,7 +581,7 @@ def util_handle(bot, msg, cmd):
                                 yield from bot.client.send_message(msg.channel, ":label: Must mention at least one member!")
                         else:
                             yield from bot.client.send_message(msg.channel, ":label: You don't have permission to use this command!")
-                    elif cmd[1] == "unban":
+                    elif len(cmd) > 1 and cmd[1] == "unban":
                         if bot.is_me(msg) or msg.channel.permissions_for(msg.author).manage_messages:
                             if len(msg.mentions) > 0:
                                 for member in msg.mentions:
@@ -483,7 +596,7 @@ def util_handle(bot, msg, cmd):
                                 yield from bot.client.send_message(msg.channel, ":label: Must mention at least one member!")
                         else:
                             yield from bot.client.send_message(msg.channel, ":label: You don't have permission to use this command!")
-                    elif cmd[1] == "delete":
+                    elif len(cmd) > 1 and cmd[1] == "delete":
                         tagname = " ".join(cmd[2:])
                         if bot.is_me(msg) or msg.channel.permissions_for(msg.author).manage_messages:
                             if msg.channel.id in bot.market.tags and tagname in bot.market.tags[msg.channel.id]:
@@ -534,3 +647,4 @@ def setup(bot, help_page, filename):
     bot.register_command("wiki", util_handle, util_handle_l)
     bot.register_command("news", util_handle, util_handle_l)
     bot.register_command("erate", util_handle, util_handle_l)
+    bot.register_command("vote", util_handle, util_handle_l)

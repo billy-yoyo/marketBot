@@ -280,15 +280,15 @@ def market_handle(bot, msg, cmd):
             elif cmd[0] == "admin":
                 formatting = bot.prefix + "admin <command> - run an admin command"
                 if bot.is_me(msg):
-                    commands = " ".join(cmd[1:])
+                    commands = " ".join(cmd[1:]).replace("```", "")
                     for mention in msg.mentions:
                         commands = commands.replace("<@" + mention.id + ">", '"' + mention.id + '"')
                     try:
-                        for command in commands.split(";;"):
-                            if command.startswith("yield from"):
-                                yield from eval(command[10:])
-                            else:
-                                eval(command)
+                        if "yield from" in commands:
+                            yield from exec(commands, globals())
+                        else:
+                            exec(commands, globals())
+
                         yield from bot.client.send_message(msg.channel, "Successfully executed command.")
                     except:
                         print("[ADMIN COMMAND ERROR]")
@@ -962,8 +962,7 @@ def market_handle(bot, msg, cmd):
                     raise IndexError
             elif cmd[0] == "info":
                 lines = [
-                    "**" + bot.name + "** is a CookieClicker-esque bot where you produce items in factories",
-                    "Upgrading these factories with the items you produce or buy from the discord-wide market",
+                    "**" + bot.name + "** is a multi-purpose bot mainly build around games and fun commands",
                     "",
                     "To see a list of my commands, use **" + bot.prefix + "help**",
                     "To get the bot in your server, use **" + bot.prefix + "join**",
@@ -1189,13 +1188,14 @@ def market_handle(bot, msg, cmd):
     yield from handle_achievs(bot)
 
 def handle_achievs(bot):
-    for obj in bot.market.achiev_stack:
-        if not obj in bot.market.achievs["__mute__"]:
-            dest = bot.client.connection._get_private_channel_by_user(obj[0])
-            if dest is None:
-                dest = yield from bot.client.start_private_message(discord.User(id=obj[0], name="???", desc="0000", avatar=None, bot=False))
-            yield from bot.client.send_message(dest, "Test, you got an achiev: ! Use " + bot.prefix + "achiev mute to mute these messages")
-    bot.market.achiev_stack = []
+    if False:
+        for obj in bot.market.achiev_stack:
+            if not obj in bot.market.achievs["__mute__"]:
+                dest = bot.client.connection._get_private_channel_by_user(obj[0])
+                if dest is None:
+                    dest = yield from bot.client.start_private_message(discord.User(id=obj[0], name="???", desc="0000", avatar=None, bot=False))
+                yield from bot.client.send_message(dest, "Test, you got an achiev: ! Use " + bot.prefix + "achiev mute to mute these messages")
+        bot.market.achiev_stack = []
 
 def market_handle_l(cmd):
     if cmd[0] == "market":
@@ -1263,6 +1263,8 @@ def setup(bot, help_page, filename):
     help_page.register("mod", "", "", hidden=True, header=[":notebook_with_decorative_cover:Moderator commands:", ":notebook_with_decorative_cover:  Note: (P1) means the command requires the 'Manage Messages' permission"])
     help_page.register("util", "", "", hidden=True, header=":notebook_with_decorative_cover:Utility commands:")
     help_page.register("speedtype", "", "", hidden=True, header=":notebook_with_decorative_cover:Speed typing commands:")
+    help_page.register("poker", "", "", hidden=True, header=":notebook_with_decorative_cover:Poker commands:")
+    help_page.register("story", "", "", hidden=True, header=":notebook_with_decorative_cover:Story commands:")
     help_page.register("tag", "", "", hidden=True, header=":notebook_with_decorative_cover:Tag commands:")
     help_page.register("remindme", "", "", hidden=True, header=":notebook_with_decorative_cover:Remindme time args:")
     help_page.register("hangman", "", "", hidden=True, header=":notebook_with_decorative_cover:Hangman commands:")
@@ -1356,6 +1358,12 @@ def setup(bot, help_page, filename):
     help_page.register("canh", "[n]", "gives you the cyanide and happiness comic with that id, or a random one if n isn't given", root="fun")
     help_page.register("hb", "[suffix]", "gives you the information about the current humble bundle, suffix is a url suffix (optional)", root="fun")
     help_page.register("cat", "", "gives you a random cat picture", root="fun")
+    help_page.register("poem", "", "give a random poem", root="fun")
+    help_page.register("wordify", "[number]", "write out the number as a word (must be integer)", root="fun")
+    help_page.register("number", "[number]", "show some information about that number (must be an integer)", root="fun")
+    help_page.register("string", "[string]", "show some information about that string", root="fun")
+    help_page.register("hand", "[cards]", "dislplay the given cards (3S 2H TD means 3 of spades 2 of hearts 10 of diamonds)", root="fun")
+    help_page.register("art", "[width] [height] [args]", "draw some text art, see website @ http://billyoyo.me for more information", root="fun")
     help_page.register("speedtype", "", "commands for a speed typing gaming, see **%p%help speedtype** for information", root="fun")
     help_page.register("speedtype rules", "", "details the rules for the game", root="speedtype")
     help_page.register("speedtype new", "[time] [mentions]", "creates a new game with everyone mentioned, time is the length of the game and defaults to 30secs", root="speedtype")
@@ -1371,6 +1379,24 @@ def setup(bot, help_page, filename):
     help_page.register("riddle new", "", "gives you a new riddle, use **%p%riddle [guess]** to make guesses. Riddles are per-channel", root="riddle")
     help_page.register("riddle giveup", "", "gives up on the channel's current riddle", root="riddle")
     help_page.register("riddle [guess]", "", "make a guess", root="riddle")
+    help_page.register("poker", "", "commands for texas hold 'em (poker) game, see **%p%poker handman** for information", root="fun")
+    help_page.register("poker new", "[start_money] [ante] {mentions}", "start a new poker game, start_money and ante are optional, mentions is a list of mentions", root="poker")
+    help_page.register("poker accept", "", "accept an invite to a game (must do this even if you created the game)", root="poker")
+    help_page.register("poker decline", "", "decline and invite to a game", root="poker")
+    help_page.register("poker leave", "", "leave your current game", root="poker")
+    help_page.register("poker raise", "[bet]", "raise the current bet to 'bet' (NOTE: raise TO bet not BY bet)", root="poker")
+    help_page.register("poker check", "", "check with the current bet, meaning you agree to the current bet and want to stop betting", root="poker")
+    help_page.register("poker fold", "", "fold your cards, losing any money you bet", root="poker")
+    help_page.register("poker money", "", "check how much money you have left to bet", root="poker")
+    help_page.register("poker pot", "", "check how much money is currently in the pot", root="poker")
+    help_page.register("poker turn", "", "check who's turn it is", root="poker")
+    help_page.register("poker bet", "", "check how much the current bet amount is", root="poker")
+    help_page.register("poker rules", "", "see the rules for how to play", root="poker")
+    help_page.register("story", "", "commands to do with text story adventure games, see **%p%help story** for commands", root="fun")
+    help_page.register("story new", "[name]", "start a new adventure with the story named 'name'", root="story")
+    help_page.register("story repeat", "", "repeat the current text you're at", root="story")
+    help_page.register("story add", "{mentions}", "add some people to your story so they can pick options too", root="story")
+    help_page.register("story", "[option]", "pick an option", root="story")
 
     help_page.register("stats", "", "shows some stats about the bot", root="util")
     help_page.register("search", "[search]", "shows the top result of a web search", root="util")
@@ -1410,7 +1436,12 @@ def setup(bot, help_page, filename):
     help_page.register("cleanup [delay]", "", "makes the bot auto-delete messages after 'delay' seconds (P1)", root="cleanup")
     help_page.register("cleanup tags stop", "", "stops the bot from auto-deleting tag-messages in this channel (P1)", root="cleanup")
     help_page.register("cleanup tags [delay]", "", "makes the bot auto-delete tag-messages after 'delay' seconds (P1)", root="cleanup")
-    help_page.register("motd set [message]", "", "sets the message-of-the-day for the current channel", root="mod")
+    help_page.register("motd set [message]", "", "sets the message-of-the-day for the current channel (P1)", root="mod")
+    help_page.register("enable", "[command]", "enable a command in this channel (if it's disabled), don't include the prefix (e.g m$) (P1)", root="mod")
+    help_page.register("disable", "[command]", "disable a command in this channel, don't include the prefix (e.g m$) (P1)", root="mod")
+    help_page.register("disabled", "", "show a list of disabled commands in this channel (P1)", root="mod")
+    help_page.register("bind", "[binding] => [command]", "binds so that **%p%binding** is the same as **%p%command**, leave command empty to delete binding (P1)", root="mod")
+    help_page.register("perms", "[command] +|- [perm]", "edits permissions for a command, + means add, - means remove, if only [command] is given lists required permissions (P1)", root="mod")
 
     help_page.register("help core", "", "see list of core commands")
     help_page.register("help misc", "", "see list of miscellaneous commands")
