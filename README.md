@@ -15,6 +15,7 @@ File information:
     /src/profiler.py - creates profile cards for users. WIP
     /src/formatter.py - formats my hangman/speedtype word list for me.
     /src/corruptfun2.py - filters a 64bit .bmp file with a kernal
+    /src/poker - contains a command for checking who wins between two people in a poker game
     /src/poem-getter.py - gets a large list of poems from a website and loads them in to poems.txt
     /src/textart.py - creates text art in a similar fashion to pygame
     /src/vectorscript.py - unused, not sure if I'll bring this back, it is an image equivelant to textart
