@@ -1,6 +1,7 @@
-import time, discord, random
+import time, discord, random, datetime
 from os import listdir
 from os.path import isfile, join
+from copy import copy
 
 def default_handle(bot, message, command):
     return
@@ -22,6 +23,55 @@ statuses = [
     "the long con",
     "it cool"
 ]
+
+
+class UserHistory:
+    MESSAGE_CAP = 10
+    def __init__(self, userid, username, offenses=[]):
+        self.id = userid
+        self.name = username
+        self.history = []
+        self.offenses = []
+
+        self.banned = False
+
+        self.next_offense = ""
+
+    def flush(self):
+        if self.next_offense != "":
+            self.offenses.append(self.next_offense)
+            self.next_offense = ""
+
+    def add_offense(self, offense):
+        self.next_offense = offense
+
+    def add_message(self, message):
+        if len(self.history) >= self.MESSAGE_CAP:
+            self.history = [message] + self.history[:-1]
+        else:
+            self.history = [message] + self.history
+
+    def get_messages(self, seconds):
+        time_stamp = datetime.datetime.now()
+        msgs = []
+        for msg in self.history:
+            elap = (time_stamp - msg.timestamp).total_seconds()
+            if elap > seconds:
+                break
+            msgs.append(msg)
+        return msgs
+
+
+def locals_test():
+    print(locals())
+
+def clear_globals(*save):
+    globs = copy(globals())
+    for key in globs:
+        if key not in save:
+            del globals()[key]
+    return globs
+
 
 class Bot:
     def __init__(self, client):
@@ -46,8 +96,89 @@ class Bot:
         self.setup = False
         self.next_status_change = 0
         self.commands_used = 0
+        self.last_message = None
+
+        self.automod_id_map = {
+            "delete": 0,
+            "edit": 1,
+            "kick": 2,
+            "ban": 3,
+            "role": 4,
+            "message": 5
+        }
 
         self.last_disable = ""
+
+    def handle_automod(self, message):
+        if not message.author.id in self.market.spam:
+            self.market.spam[message.author.id] = UserHistory(message.author.id, message.author.name)
+        self.market.spam[message.author.id].add_message(message)
+
+        timestamp = datetime.datetime.now()
+        for userid in self.market.automod_code["bans"]:
+            if self.market.automod_code["bans"][userid] < timestamp:
+                yield from self.client.unban(message.channel.server, discord.User(id=userid))
+
+        deleted = False
+        if message.channel.id in self.market.automod and message.author.id in self.market.spam:
+            for name in self.market.automod[message.channel.id]:
+                func = self.market.automod[message.channel.id][name]
+                history = self.market.spam[message.author.id]
+                old_globals = clear_globals("clear_globals", "copy", "clear_locals", "locals_test")
+
+                results = []
+                try:
+                    results = func(message, history)
+                except:
+                    import traceback
+                    traceback.print_exc()
+
+                clear_globals("clear_globals", "copy", "clear_locals")
+
+                globals().update(old_globals)
+                #locals().update(old_locals)
+
+                if type(results) != list:
+                    results = [results]
+                if len(results) < 5:
+                    for result in results:
+                        try:
+                            if type(result) is dict:
+                                id = result.pop("id", -1)
+                                if type(id) is str: id = self.automod_id_map[id.lower()]
+                                if id == 0: # delete
+                                    yield from self.client.delete_message(message)
+                                    deleted = True
+                                elif id == 1: # edit
+                                    text = result.pop("text", "")
+                                    if text != "":
+                                        yield from self.client.edit_message(message, text)
+                                elif id == 2: # kick
+                                    yield from self.client.kick(message.author)
+                                elif id == 3: # ban
+                                    length = result.pop("time", -1)
+                                    message_days = result.pop("days", 1)
+                                    history.banned = True
+                                    yield from self.client.ban(message.author, message_days)
+                                    if length > 0:
+                                        self.market.automod_code["bans"][message.author.id] = length
+                                elif id == 4: # role
+                                    name = result.pop("role", "")
+                                    if name != "":
+                                        for role in message.channel.server.roles:
+                                            if role.name == name:
+                                                self.client.add_roles(message.author, role)
+                                                break
+                                elif id == 5: # message
+                                    text = result.pop("text", "")
+                                    if text != "":
+                                        yield from self.client.send_message(message.channel, text)
+
+                            self.market.spam[message.author.id].flush()
+                        except:
+                            pass
+        return deleted
+
 
     def update_status(self, user):
         ctime = time.time()

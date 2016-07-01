@@ -1,4 +1,4 @@
-import market, traceback, discord
+import market, traceback, discord, safeexec, botlib, random
 
 class Purger:
     def __init__(self, const):
@@ -296,6 +296,61 @@ def moder_handle(bot, msg, cmd):
                         yield from bot.client.send_message(msg.channel, "Can't add permissions to the `perms` command!")
                 else:
                     yield from bot.client.send_message(msg.channel, "You don't have permission to use that command!")
+            elif cmd[0] == "automod":
+                formatting = bot.prefix + "automod set|remove|list"
+                if bot.is_me(msg) or msg.channel.permissions_for(msg.author).manage_messages:
+                    if cmd[1] == "set":
+                        formatting = bot.prefix + "automod set [name] [code]"
+                        name = cmd[2]
+                        code = " ".join(cmd[3:])
+                        while code[0] == "`":
+                            code = code[1:]
+                        while code[-1] == "`":
+                            code = code[:-1]
+                        if code.startswith("py"):
+                            code = code[2:]
+
+                        result = safeexec.check_safe(code, ["add_offense", "get_messages", "len", "permissions_in", "get_channel", "get_member", "get_member_named", "permissions_for", "range"])
+                        if result == 0:
+                            func = safeexec.get_exec_function(code, ["message", "history"])
+                            spam_names = [x for x in bot.market.spam.keys()]
+                            uname = random.choice(spam_names)
+                            uname2 = random.choice(spam_names)
+                            history = bot.market.spam[uname2]
+                            history_msg = msg
+                            if len(history.history) > 0:
+                                history_msg = random.choice(history.history)
+                            elif bot.last_message is not None:
+                                history_msg = bot.last_message
+                            if safeexec.check_timeout(1, func, history_msg, bot.market.spam[uname]):
+                                if not msg.channel.id in bot.market.automod:
+                                    bot.market.automod[msg.channel.id] = {}
+                                if not msg.channel.id in bot.market.automod_code:
+                                    bot.market.automod_code[msg.channel.id] = {}
+                                bot.market.automod[msg.channel.id][name] = func
+                                bot.market.automod_code[msg.channel.id][name] = code
+                                yield from bot.client.send_message(msg.channel, "SUCCESS: Added automod code for this channel")
+                            else:
+                                yield from bot.client.send_message(msg.channel, "ERROR: Your function took too long to process an example call, please edit it and try again. (must take under 2 seconds)")
+                        else:
+                            yield from bot.client.send_message(msg.channel, "ERROR: " + safeexec.error_map[result])
+                    elif cmd[1] == "remove":
+                        formatting = bot.prefix + "automod remove [name]"
+                        name = cmd[2]
+                        if msg.channel.id in bot.market.automod and name in bot.market.automod[msg.channel.id]:
+                            del bot.market.automod[msg.channel.id][name]
+                            yield from bot.client.send_message(msg.channel, "Removed automod code under name `" + name + "`")
+                        else:
+                            yield from bot.client.send_message(msg.channel, "No automod found with the name `" + name + "`")
+                    elif cmd[1] == "list":
+                        if msg.channel.id in bot.market.automod and len(bot.market.automod[msg.channel.id]) > 0:
+                            yield from bot.client.send_message(msg.channel, "Automod code for this channel: `" + "`, `".join([x for x in bot.market.automod[msg.channel.id]]) + "`")
+                        else:
+                            yield from bot.client.send_message(msg.channel, "There's no automod code for this channel")
+                    else:
+                        raise IndexError
+                else:
+                    yield from bot.client.send_message(msg.channel, "You don't have permission to use that command!")
             elif cmd[0] == "pm":
                 if bot.is_me(msg):
                     user = None
@@ -335,3 +390,4 @@ def setup(bot, help_page, filename):
     bot.register_command("bind", moder_handle, moder_handle_l)
     bot.register_command("perms", moder_handle, moder_handle_l)
     bot.register_command("pm", moder_handle, moder_handle_l)
+    bot.register_command("automod", moder_handle, moder_handle_l)

@@ -1,4 +1,4 @@
-import threading, math, copy, json, os, shutil, datetime, time, traceback, random, discord
+import threading, math, copy, json, os, shutil, datetime, time, traceback, random, discord, safeexec, botlib
 
 
 def is_number(s):
@@ -629,6 +629,9 @@ class Market:
         self.votes = {}
         self.binds = {}
         self.perms = {}
+        self.automod = {}
+        self.automod_code = {"bans": {}}
+        self.spam = {}
         self.tags["__tagban__"] = {}
         self.load()
         self.save_loop()
@@ -717,7 +720,7 @@ class Market:
         if user_id in self.trading:
             offers = self.trading[user_id]["offers"]
             for uid in self.offers:
-                if uid in self.tradinga and user_id in self.trading[uid]:
+                if uid in self.trading and user_id in self.trading[uid]:
                     del self.trading[uid][user_id]
             del self.trading[user_id]
 
@@ -789,7 +792,7 @@ class Market:
             os.makedirs("data/")
         if not os.path.exists("data/" + dir_suffix):
             os.makedirs("data/" + dir_suffix)
-        to_save = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings", "reminders", "news", "disables", "perms", "binds", "votes"]
+        to_save = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings", "reminders", "news", "disables", "perms", "binds", "votes", "automod_code"]
         for fname in to_save:
             try:
                 data = getattr(self, fname)
@@ -817,6 +820,24 @@ class Market:
             print("[SAVE ERROR] Failed to save factories")
 
         try:
+            f = open("data/" + dir_suffix + "userhistory.json", "w")
+            data = {}
+            for user in self.spam:
+                history = self.spam[user]
+                data[user] = {
+                    "id": history.id,
+                    "name": history.name,
+                    "offenses": history.offenses,
+                    "banned": history.banned
+                }
+            json.dump(data, f)
+            if not f.closed:
+                f.close()
+        except:
+            traceback.print_exc()
+            print("[SAVE ERROR] Failed to save user history")
+
+        try:
             f = open("data/" + dir_suffix + "stories.json", "w")
             json.dump(self.games["stories"], f)
             if not f.closed:
@@ -835,7 +856,7 @@ class Market:
         if not os.path.exists("data/"):
             os.makedirs("data/")
         if os.path.exists("data/" + dir_suffix):
-            to_load = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings", "reminders", "news", "disables", "binds", "perms", "votes"]
+            to_load = ["market", "offers", "money", "inventory", "money_history", "trading", "item_types", "achievs", "chests", "tags", "settings", "reminders", "news", "disables", "binds", "perms", "votes", "automod_code"]
             for fname in to_load:
                 try:
                     file_name = "data/" + dir_suffix + fname + ".json"
@@ -874,7 +895,31 @@ class Market:
                     print("[LOAD ERROR] Couldn't find file " + file_name)
             except:
                 traceback.print_exc()
-                print("[LOAD ERROR] Failed to load factories")
+                print("[LOAD ERROR] Failed to load stories")
+
+            try:
+                file_name = "data/" + dir_suffix + "userhistory.json"
+                if os.path.exists(file_name):
+                    f = open(file_name, "r")
+                    data = json.load(f)
+                    for user in data:
+                        history = botlib.UserHistory(data[user]["id"], data[user]["name"])
+                        history.offenses = data[user]["offenses"]
+                        history.banned = data[user]["banned"]
+                        self.spam[user] = history
+                    if not f.closed:
+                        f.close()
+                else:
+                    print("[LOAD ERROR] Couldn't find file " + file_name)
+            except:
+                traceback.print_exc()
+                print("[LOAD ERROR] Failed to load user history")
+
+            for chid in self.automod_code:
+                self.automod[chid] = {}
+                for name in self.automod_code[chid]:
+                    self.automod[chid][name] = safeexec.get_exec_function(self.automod_code[chid][name], ["message", "history"])
+
             if dir_suffix == "":
                 print("[LOAD] Loaded!")
             else:

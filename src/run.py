@@ -9,3 +9,4 @@ def restarter():
     main.run(restarter, 1)
 
 main.run(restarter)
+print("hello")

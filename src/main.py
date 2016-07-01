@@ -6,6 +6,14 @@ import requests
 from os import listdir
 from os.path import isfile, join
 
+
+# LINES OF CODE (Last count 30/06/2016):
+#
+#    /src/plugins/ = 4009 lines
+#    /src/ = 4024
+#
+#   TOTAL: 8033 lines of code
+
 def run(restarter, restart_source=None):
     client = discord.Client()
 
@@ -70,10 +78,15 @@ def run(restarter, restart_source=None):
                         if bot.market.running:
                             yield from client.delete_message(message)
                 elif not message.author.bot:
-                    bot.prefix = bot.market.get_prefix(bot, message)
-                    yield from bot.run_command(message, test_role)
-                    yield from bot.market.check_reminders(bot)
+                    deleted = yield from bot.handle_automod(message)
+                    if not deleted:
+                        bot.prefix = bot.market.get_prefix(bot, message)
+                        yield from bot.run_command(message, test_role)
+                        yield from bot.market.check_reminders(bot)
+                    bot.last_message = message
             yield from bot.update_status(message.author.name)
+
+
 
     print("Creating bot..")
     bot = botlib.Bot(client)
@@ -91,7 +104,7 @@ def run(restarter, restart_source=None):
     print("Finding bot token...")
     token = None
     carbon_key = None
-    is_test_bot = True
+    is_test_bot = False
 
     if is_test_bot:
         f = open("credentials_test.txt")

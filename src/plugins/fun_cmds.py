@@ -823,7 +823,7 @@ def fun_handle(bot, msg, cmd):
                 yield from bot.client.send_message(msg.channel, ball_8[random.randint(0, len(ball_8)-1)])
             elif cmd[0] == "wordify":
                 try:
-                    yield from bot.client.send_message(msg.channel, "```" + cmd[1] + " is written as: \n" + get_word(int(cmd[1])))
+                    yield from bot.client.send_message(msg.channel, "```\n" + cmd[1] + " is written as: \n" + get_word(int(cmd[1])) + "\n```")
                 except ValueError:
                     yield from bot.client.send_message(msg.channel, "Must give an integer!")
             elif cmd[0] == "flip":
@@ -864,13 +864,12 @@ def fun_handle(bot, msg, cmd):
                     failed = []
                     success = []
                     for u in invited:
-                        if not u.id == msg.author.id:
-                            if u.id not in bot.market.games["poker"]:
-                                if not u in success:
-                                    success.append(u)
-                            else:
-                                if not u in failed:
-                                    failed.append(u)
+                        if u.id not in bot.market.games["poker"]:
+                            if not u in success:
+                                success.append(u)
+                        else:
+                            if not u in failed:
+                                failed.append(u)
 
                     if len(failed) > 0:
                         yield from bot.client.send_message(msg.channel, "Failed to create game as " + market.word_list_format([x.mention for x in failed]) + " are already in poker games!")
@@ -967,7 +966,7 @@ def fun_handle(bot, msg, cmd):
                             yield from bot.client.send_message(msg.channel,
                                                                "The game hasn't started yet, still waiting for people to respond!")
                         else:
-                            yield from bot.client.send_message(msg.channel, "You have `$" + str(bot.market.games["poker"]._money(msg.author)) + "`")
+                            yield from bot.client.send_message(msg.channel, "You have `$" + str(bot.market.games["poker"][msg.author.id]._money(msg.author)) + "`")
                     else:
                         yield from bot.client.send_message(msg.channel,
                                                            "You aren't in a game! Use " + bot.prefix + "poker new to create one")
@@ -978,7 +977,7 @@ def fun_handle(bot, msg, cmd):
                             yield from bot.client.send_message(msg.channel,
                                                                "The game hasn't started yet, still waiting for people to respond!")
                         else:
-                            yield from bot.client.send_message(msg.channel, "The pot is currently `$" + bot.market.games["poker"]._pot() + "`")
+                            yield from bot.client.send_message(msg.channel, "The pot is currently `$" + str(bot.market.games["poker"][msg.author.id]._pot()) + "`")
                     else:
                         yield from bot.client.send_message(msg.channel,
                                                            "You aren't in a game! Use " + bot.prefix + "poker new to create one")
@@ -990,8 +989,8 @@ def fun_handle(bot, msg, cmd):
                                                                "The game hasn't started yet, still waiting for people to respond!")
                         else:
                             yield from bot.client.send_message(msg.channel,
-                                                               "The current bet is `$" + bot.market.games[
-                                                                   "poker"][msg.author.id]._bet() + "`")
+                                                               "The current bet is `$" + str(bot.market.games[
+                                                                   "poker"][msg.author.id]._bet()) + "`")
                     else:
                         yield from bot.client.send_message(msg.channel,
                                                            "You aren't in a game! Use " + bot.prefix + "poker new to create one")
@@ -1002,7 +1001,7 @@ def fun_handle(bot, msg, cmd):
                             yield from bot.client.send_message(msg.channel,
                                                                "The game hasn't started yet, still waiting for people to respond!")
                         else:
-                            yield from bot.client.send_message(msg.channel, "It's `" + bot.market.games["poker"]._turn() + "`'s turn!")
+                            yield from bot.client.send_message(msg.channel, "It's `" + bot.market.games["poker"][msg.author.id]._turn() + "`'s turn!")
                     else:
                         yield from bot.client.send_message(msg.channel,
                                                            "You aren't in a game! Use " + bot.prefix + "poker new to create one")
